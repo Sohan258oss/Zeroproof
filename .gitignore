@@ -1,0 +1,41 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+.env
+
+# Build outputs
+dist/
+build/
+out/
+
+# Circom / SnarkJS / zkSNARKs artifacts
+# These files are often large and generated from source circuits
+*.r1cs
+*.ptau
+*.zkey
+*.wasm
+*.sym
+*.exe
+
+# Example proof and public inputs (often generated during testing)
+proof.json
+public.json
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.sujet
+*.swp

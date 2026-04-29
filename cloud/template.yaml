@@ -1,0 +1,44 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  ZeroProof Verification Service
+  Serverless Plonk verification API emphasizing zero PII and statelessness.
+
+Resources:
+  ZeroProofTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ZeroProofVerificationLogs
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: VerificationId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: VerificationId
+          KeyType: HASH
+
+  VerifyAgeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../
+      Handler: cloud/lambda_handler.handler
+      Runtime: nodejs18.x
+      Timeout: 15
+      MemorySize: 512
+      Architectures:
+        - x86_64
+      # Least Privilege IAM Role
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ZeroProofTable
+      Events:
+        VerifyApi:
+          Type: HttpApi
+          Properties:
+            Path: /v1/verify-age
+            Method: post
+
+Outputs:
+  ApiEndpoint:
+    Description: "API Gateway endpoint URL for Prod stage for Verify Age function"
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/v1/verify-age"
