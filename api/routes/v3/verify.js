@@ -71,6 +71,7 @@ router.get("/:token", async (req, res, next) => {
             verification: {
                 verified: credential.zkProof ? credential.zkProof.verified : true,
                 eligible: credential.isEligible,
+                isEligible: credential.isEligible,
                 proofHash: proofHash,
                 credentialType: credential.credentialType,
                 zkProof: credential.zkProof,

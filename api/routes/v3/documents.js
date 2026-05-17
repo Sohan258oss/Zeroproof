@@ -57,12 +57,15 @@ router.post("/upload", upload.single("document"), async (req, res, next) => {
         }
 
         // Parse attributes (prefer extracted data if available)
+        // If analyzer returned empty strings, it means extraction genuinely failed
+        // Do NOT substitute fake data — let the frontend handle it
+        const extractedName = extracted?.name || req.body.fullName || "";
+        const extractedDOB = extracted?.dateOfBirth || req.body.dateOfBirth || "";
         const attributes = {
-            fullName: extracted?.name || req.body.fullName || "",
-            dateOfBirth: extracted?.dateOfBirth || req.body.dateOfBirth || "",
+            fullName: extractedName,
+            dateOfBirth: extractedDOB,
             documentType: extracted?.documentType || req.body.documentType || "other",
             status: extracted?.status || "SUCCESS",
-            confidence: extracted?.confidence || { name: 0, dob: 0 }
         };
 
         const isVerified = !!(attributes.fullName && attributes.dateOfBirth);
@@ -95,11 +98,10 @@ router.post("/upload", upload.single("document"), async (req, res, next) => {
                 originalName: doc.originalName,
                 documentHash: doc.documentHash,
                 attributes: {
-                    name: attributes.fullName,
-                    dob: attributes.dateOfBirth,
+                    name: attributes.fullName || "UNKNOWN",
+                    dob: attributes.dateOfBirth || "",
                     documentType: attributes.documentType,
                     status: attributes.status,
-                    confidence: attributes.confidence
                 },
                 duplicate: isDuplicate,
                 isVerified: doc.isVerified,
