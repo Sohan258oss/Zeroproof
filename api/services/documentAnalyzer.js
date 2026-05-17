@@ -99,66 +99,6 @@ async function analyzeDocument(buffer, mimeType = "") {
     }
 }
 
-// =========================================
-// NOISE WORDS — lines containing these are NOT person names
-// =========================================
-const NOISE_WORDS = [
-    "government", "governmant", "govermant", "goverment",
-    "india", "lndia", "indla",
-    "aadhaar", "aadhar", "aadheer", "aadbaar",
-    "authority", "identification",
-    "unique", "enrollment", "enrolment", "vid", "address", "male", "female",
-    "dob", "birth", "date", "year", "signature", "help", "download",
-    "maadhaar", "uidai", "www", "http", "phone", "mobile", "email",
-    "student", "card", "valid", "until", "january", "february", "march",
-    "april", "may", "june", "july", "august", "september", "october",
-    "november", "december", "board", "university", "college",
-    "father", "mother", "son", "daughter", "wife", "husband",
-    "grade", "semester", "marks", "total", "subject", "result", "pass", "fail",
-    "certificate", "examination", "register", "number", "roll", "class",
-    "print", "name", "issued", "expiry", "photo",
-    "village", "town", "city", "state", "district", "post", "office",
-    "pin", "code", "road", "street", "nagar", "colony", "sector",
-    "bharat", "sarkar", "pradesh", "karnataka", "maharashtra", "tamil",
-    "bihar", "delhi", "pune", "mumbai", "bangalore", "chennai",
-    "floor", "house", "flat", "block", "near", "opposite", "behind",
-    "gender", "age", "weight", "blood", "group", "height", "contact",
-    "republic", "verify", "verification", "scan", "qr",
-    "door", "ward", "care", "self", "relation", "spouse",
-    "beautiful", "sunset", "ocean", "sky", "painted", "shades",
-    "the", "over", "was", "and", "for", "with", "from", "this", "that",
-    "has", "have", "been", "are", "were", "will", "would", "could",
-    "not", "but", "all", "can", "had", "her", "one", "our", "out",
-];
-
-// Common short English words that are NOT person names
-const SHORT_COMMON_WORDS = [
-    "the", "and", "for", "was", "are", "but", "not", "you", "all",
-    "can", "had", "her", "one", "our", "out", "its", "his", "how",
-    "old", "new", "now", "way", "may", "who", "did", "get", "has",
-    "him", "let", "say", "she", "too", "use", "any", "few", "got",
-    "own", "set", "try", "ask", "put", "run", "big", "end", "far",
-];
-
-/**
- * Check if a string is "noisy" (contains document metadata, not a person name)
- */
-function isNoisyLine(text) {
-    const lower = text.toLowerCase();
-    for (const nw of NOISE_WORDS) {
-        if (lower.includes(nw)) return true;
-    }
-    // Check individual words for common English words (not names)
-    const words = lower.split(/\s+/);
-    for (const w of words) {
-        if (SHORT_COMMON_WORDS.includes(w)) return true;
-    }
-    // Lines with too many digits are not names
-    const digitCount = (text.match(/\d/g) || []).length;
-    if (digitCount > 2) return true;
-    return false;
-}
-
 /**
  * Clean a line to extract only the alphabetic name portion
  */
@@ -171,15 +111,96 @@ function cleanNameLine(line) {
 
 /**
  * Check if a cleaned string looks like a person's name
- * - At least 2 words (first + last)
- * - Each word is 2+ letters
- * - Not too long (max 5 words)
+ * Requirements:
+ * - Each word is 2+ letters (allow single letter for middle initials like "P")
+ * - Total length >= 4
+ * - At least 1 word has 3+ letters
  */
 function looksLikeName(cleaned) {
     if (cleaned.length < 4) return false;
-    const words = cleaned.split(/\s+/).filter(w => w.length >= 2);
-    if (words.length < 1 || words.length > 5) return false;
+    const words = cleaned.split(/\s+/).filter(w => w.length >= 1);
+    if (words.length < 2 || words.length > 5) return false;
+    // At least one word must be 3+ letters (real name, not just initials)
+    const hasRealWord = words.some(w => w.length >= 3);
+    if (!hasRealWord) return false;
     return words.every(w => /^[A-Za-z]+$/.test(w));
+}
+
+/**
+ * Check if a string is "noisy" (contains document metadata/junk, not a person name)
+ */
+function isNoisyLine(text) {
+    const lower = text.toLowerCase();
+    const words = lower.split(/\s+/);
+
+    // Reject single words (names need at least 2 words)
+    if (words.length < 2) return true;
+
+    // Check against noise word list
+    const NOISE_WORDS = [
+        "government", "governmant", "govermant", "goverment", "govenment",
+        "india", "lndia", "indla", "indian",
+        "aadhaar", "aadhar", "aadheer",
+        "authority", "identification", "enrollment", "enrolment",
+        "unique", "vid", "address", "male", "female", "gender",
+        "dob", "birth", "date", "year", "signature", "help", "download",
+        "maadhaar", "uidai", "www", "http", "phone", "mobile", "email",
+        "student", "card", "valid", "until",
+        "board", "university", "college", "school", "department",
+        "father", "mother", "son", "daughter", "wife", "husband",
+        "grade", "semester", "marks", "total", "subject", "result",
+        "certificate", "examination", "register", "number", "roll", "class",
+        "print", "issued", "expiry", "photo",
+        "village", "town", "city", "state", "district", "post", "office",
+        "road", "street", "nagar", "colony", "sector", "layout", "stage",
+        "bharat", "sarkar", "pradesh", "karnataka", "maharashtra", "tamil",
+        "bihar", "delhi", "pune", "mumbai", "bangalore", "bengaluru", "chennai",
+        "floor", "house", "flat", "block", "near", "opposite", "behind",
+        "weight", "blood", "group", "height", "contact",
+        "republic", "verify", "verification", "scan",
+        "door", "ward", "care", "self", "relation", "spouse",
+        "residency", "theatre", "cross", "main",
+        "education", "secondary", "pre-university", "composite",
+        "english", "hindi", "sanskrit", "science", "physics", "chemistry",
+        "mathematics", "computer", "language",
+        "hundred", "thousand", "only", "ninety", "eighty", "seventy",
+        "sixty", "fifty", "forty", "thirty", "twenty",
+        "passed", "candidate", "mentioned", "below", "following", "details",
+        "certify", "secretary", "chairman", "director",
+        "january", "february", "march", "april", "may", "june",
+        "july", "august", "september", "october", "november", "december",
+        "ref", "code", "south", "north", "east", "west",
+    ];
+
+    for (const nw of NOISE_WORDS) {
+        if (lower.includes(nw)) return true;
+    }
+
+    // Common short English words that are definitely NOT names
+    const SHORT_WORDS = [
+        "the", "and", "for", "was", "are", "but", "not", "you", "all",
+        "can", "had", "her", "one", "our", "out", "its", "his", "how",
+        "old", "new", "now", "way", "who", "did", "get", "has", "too",
+        "him", "let", "say", "she", "use", "any", "few", "got", "own",
+        "set", "try", "ask", "put", "run", "big", "end", "far", "yet",
+        "this", "that", "with", "from", "have", "been", "were", "will",
+        "would", "could", "over", "into", "just", "than", "them", "then",
+        "each", "make", "like", "long", "look", "many", "some", "what",
+        "when", "which", "their", "about", "these", "other", "first",
+    ];
+
+    for (const w of words) {
+        if (SHORT_WORDS.includes(w)) return true;
+    }
+
+    // Lines with too many digits are not names
+    const digitCount = (text.match(/\d/g) || []).length;
+    if (digitCount > 2) return true;
+
+    // Lines that are too short after cleaning
+    if (lower.length < 4) return true;
+
+    return false;
 }
 
 // =========================================
@@ -189,33 +210,37 @@ function extractName(text, documentType) {
     const lines = text.split(/[\n\r]+/).map(l => l.trim()).filter(l => l.length > 0);
 
     // ======================================================
-    // STRATEGY 1: Explicit "Name" label (same-line or multi-line)
-    // Handles: "Name: Alice Tester", "NAME:\nAlice Tester"
+    // STRATEGY 1: Explicit name labels (same-line)
+    // Handles: "Name: Alice", "Candidate's Name YASHAS P PHATAK",
+    //          "Student Name: John", "Name John"
     // ======================================================
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
 
-        // Match any line that starts with a "Name" label
-        // e.g. "Name: John", "Student Name : John", "NAME:", "Candidate Name"
+        // Match various name label patterns (including "Candidate's Name")
         const labelMatch = line.match(
-            /(?:Student\s*|Candidate\s*)?(?:Name|naam)\s*[:;\-=]?\s*(.*)/i
+            /(?:Candidate'?s?\s*|Student\s*)?(?:Name|naam)\s*[:;\-=]?\s*(.*)/i
         );
         if (!labelMatch) continue;
 
-        let val = cleanNameLine(labelMatch[1]);
+        let rest = labelMatch[1];
 
-        // Remove trailing noise like "Male", "DOB" etc that OCR sometimes appends
-        val = val.replace(/\b(Male|Female|DOB|Date|Birth|Year|Address|Son|Daughter|Wife|Husband|Father|Mother)\b.*/i, "").trim();
+        // Clean: remove everything after known non-name tokens
+        rest = rest.replace(/\b(Register|Reg|Roll|Enroll|Number|No|Male|Female|DOB|Date|Birth|Year|Address|Son|Daughter|Father|Mother|S\/O|D\/O|C\/O|W\/O)\b.*/i, "");
 
-        // CASE A: Name is on the SAME line as the label
-        if (val.length >= 3 && looksLikeName(val) && !isNoisyLine(val)) {
+        let val = cleanNameLine(rest);
+
+        // CASE A: Name on SAME line as label
+        if (val.length >= 3 && looksLikeName(val)) {
             console.log("[Name] Found via same-line label:", val);
             return val;
         }
 
-        // CASE B: "NAME:" alone on this line → value is on the NEXT line(s)
+        // CASE B: "NAME:" alone → value on NEXT line(s)
         for (let j = i + 1; j < Math.min(i + 4, lines.length); j++) {
-            const nextCleaned = cleanNameLine(lines[j]);
+            let nextRest = lines[j];
+            nextRest = nextRest.replace(/\b(Register|Reg|Roll|Enroll|Number|No|Male|Female|DOB|Date|Birth|Year|Address)\b.*/i, "");
+            const nextCleaned = cleanNameLine(nextRest);
             if (nextCleaned.length >= 3 && looksLikeName(nextCleaned) && !isNoisyLine(nextCleaned)) {
                 console.log("[Name] Found via multi-line label:", nextCleaned);
                 return nextCleaned;
@@ -224,60 +249,60 @@ function extractName(text, documentType) {
     }
 
     // ======================================================
-    // STRATEGY 2: For Aadhaar — find name by POSITION
-    // On Aadhaar cards the layout is typically:
-    //   Government of India / भारत सरकार
-    //   [Person Name in English]
-    //   [Person Name in Hindi]
-    //   DOB: ... / Gender: ...
-    //   [Aadhaar Number]
-    // So the name is between the header and DOB/gender lines
+    // STRATEGY 2: For Aadhaar — look for the actual name
+    // Real Aadhaar OCR produces messy text. The name line
+    // typically contains only English alphabetic names.
+    // We look for lines that match common Indian name patterns.
     // ======================================================
     if (documentType === "aadhaar") {
-        let headerPassed = false;
+        // First try: find line right before "DOB" or "Male/Female" line
+        for (let i = 0; i < lines.length; i++) {
+            const lower = lines[i].toLowerCase();
+            if (lower.includes("dob") || lower.match(/\b(male|female)\b/i)) {
+                // Look backwards for a name-like line
+                for (let j = i - 1; j >= Math.max(0, i - 4); j--) {
+                    const cleaned = cleanNameLine(lines[j]);
+                    if (cleaned.length >= 3 && looksLikeName(cleaned) && !isNoisyLine(cleaned)) {
+                        console.log("[Name] Found via Aadhaar pre-DOB:", cleaned);
+                        return cleaned;
+                    }
+                }
+            }
+        }
+
+        // Second try: find any line that looks like a name (2-4 capitalized words)
+        // The real OCR output has names like "Yashas P Phatak" mixed with noise
         for (const line of lines) {
-            const lower = line.toLowerCase();
-
-            // Skip header lines (including OCR misspellings)
-            if (lower.includes("government") || lower.includes("governmant") || lower.includes("govermant") ||
-                lower.includes("india") || lower.includes("lndia") || lower.includes("indla") ||
-                lower.includes("aadhaar") || lower.includes("aadhar") ||
-                lower.includes("uidai") || lower.includes("unique") ||
-                lower.includes("bharat") || lower.includes("sarkar")) {
-                headerPassed = true;
-                continue;
-            }
-
-            // Stop at DOB/gender/address/number lines
-            if (lower.includes("dob") || lower.includes("birth") ||
-                lower.includes("male") || lower.includes("female") ||
-                lower.includes("gender") || lower.includes("address") ||
-                /\d{4}\s*\d{4}\s*\d{4}/.test(line)) {
-                break;
-            }
-
-            // Only consider lines after we've seen the header
-            if (!headerPassed) continue;
-
             const cleaned = cleanNameLine(line);
-            if (cleaned.length >= 3 && looksLikeName(cleaned) && !isNoisyLine(cleaned)) {
-                console.log("[Name] Found via Aadhaar positional:", cleaned);
+            if (cleaned.length < 5) continue;
+            if (isNoisyLine(cleaned)) continue;
+
+            const words = cleaned.split(/\s+/);
+            if (words.length < 2 || words.length > 4) continue;
+
+            // Name-like: each word starts with uppercase
+            const isNamePattern = words.every(w =>
+                w.length >= 1 && /^[A-Z]/.test(w) && /^[A-Za-z]+$/.test(w)
+            );
+
+            if (isNamePattern) {
+                console.log("[Name] Found via Aadhaar name pattern:", cleaned);
                 return cleaned;
             }
         }
     }
 
     // ======================================================
-    // STRATEGY 3: Generic — first clean name-like line
-    // ONLY for known document types, NOT for random images
+    // STRATEGY 3: For marks/grade cards — look for name-like lines
+    // Only for known document types
     // ======================================================
-    if (documentType !== "other") {
+    if (documentType === "marks_card" || documentType === "grade_card") {
         for (const line of lines) {
             const cleaned = cleanNameLine(line);
-            if (cleaned.length < 4) continue;
+            if (cleaned.length < 5) continue;
             if (isNoisyLine(cleaned)) continue;
             if (looksLikeName(cleaned)) {
-                console.log("[Name] Found via generic fallback:", cleaned);
+                console.log("[Name] Found via marks/grade fallback:", cleaned);
                 return cleaned;
             }
         }
@@ -293,16 +318,15 @@ function extractName(text, documentType) {
 function extractDOB(originalText, documentType) {
     const lines = originalText.split(/[\n\r]+/).map(l => l.trim()).filter(l => l.length > 0);
 
-    // Create an OCR-corrected version of the text for date searching
-    // Common OCR mistakes: O→0, l→1, I→1 (but only in digit contexts)
+    // Create an OCR-corrected version for date searching
     const ocrFixed = originalText
-        .replace(/(\d)O/g, "$10").replace(/O(\d)/g, "0$1")   // O next to digit → 0
-        .replace(/(\d)l/g, "$11").replace(/l(\d)/g, "1$1")   // l next to digit → 1
-        .replace(/(\d)I/g, "$11").replace(/I(\d)/g, "1$1");  // I next to digit → 1
+        .replace(/(\d)O/g, "$10").replace(/O(\d)/g, "0$1")
+        .replace(/(\d)l/g, "$11").replace(/l(\d)/g, "1$1")
+        .replace(/(\d)I/g, "$11").replace(/I(\d)/g, "1$1");
 
     // ======================================================
     // STRATEGY 1: Explicit DOB label (same line)
-    // "DOB: 12/05/1990", "Date of Birth: 12.05.1990"
+    // "DOB: 12/05/1990", "DOB 09/07/2006", "Date of Birth: 12.05.1990"
     // ======================================================
     for (const src of [originalText, ocrFixed]) {
         const dobMatch = src.match(
@@ -338,7 +362,7 @@ function extractDOB(originalText, documentType) {
                     }
                 }
 
-                // DD/MM/YYYY, DD.MM.YYYY, DD-MM-YYYY
+                // DD/MM/YYYY etc
                 const dateMatch = nextLine.match(/(\d{1,4})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{1,4})/);
                 if (dateMatch) {
                     const parsed = parseDate(`${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`);
@@ -370,10 +394,8 @@ function extractDOB(originalText, documentType) {
 
     // ======================================================
     // STRATEGY 4: For known document types, find ANY date pattern
-    // Only for aadhaar/marks_card/grade_card — NOT random images
     // ======================================================
     if (documentType !== "other") {
-        // Search in OCR-fixed text for date patterns
         const datePatterns = ocrFixed.match(/\d{1,2}\s*[\/.\-]\s*\d{1,2}\s*[\/.\-]\s*\d{2,4}/g);
         if (datePatterns) {
             for (const dp of datePatterns) {
@@ -381,7 +403,7 @@ function extractDOB(originalText, documentType) {
                 if (parsed) {
                     const year = parseInt(parsed.split("-")[0]);
                     if (year >= 1920 && year <= 2020) {
-                        console.log("[DOB] Found via date pattern in known doc:", parsed);
+                        console.log("[DOB] Found via date pattern:", parsed);
                         return parsed;
                     }
                 }
@@ -405,7 +427,6 @@ function extractDOB(originalText, documentType) {
  * Returns "YYYY-MM-DD" or null if invalid
  */
 function parseDate(dateStr) {
-    // Normalize: remove spaces, unify separators to "-"
     let d = dateStr.trim().replace(/\s+/g, "").replace(/[\/.\-]/g, "-");
     const parts = d.split("-");
     if (parts.length !== 3) return null;
@@ -413,17 +434,14 @@ function parseDate(dateStr) {
     let yyyy, mm, dd;
 
     if (parts[0].length === 4) {
-        // YYYY-MM-DD
         yyyy = parseInt(parts[0]);
         mm = parseInt(parts[1]);
         dd = parseInt(parts[2]);
     } else if (parts[2].length === 4) {
-        // DD-MM-YYYY (most common in Indian docs)
         dd = parseInt(parts[0]);
         mm = parseInt(parts[1]);
         yyyy = parseInt(parts[2]);
     } else if (parts[2].length === 2) {
-        // DD-MM-YY
         dd = parseInt(parts[0]);
         mm = parseInt(parts[1]);
         let yy = parseInt(parts[2]);
@@ -432,7 +450,6 @@ function parseDate(dateStr) {
         return null;
     }
 
-    // Validate
     if (isNaN(yyyy) || isNaN(mm) || isNaN(dd)) return null;
     if (yyyy < 1920 || yyyy > 2025) return null;
     if (mm < 1 || mm > 12) return null;
@@ -448,17 +465,18 @@ function extractDocumentType(text) {
     const t = text.toLowerCase();
 
     if (t.includes("aadhaar") || t.includes("aadhar") ||
-        (t.includes("government") && t.includes("india")) ||
-        (t.includes("governmant") && t.includes("lndia")) ||
-        (t.includes("govermant") && t.includes("india")) ||
-        (t.includes("government") && t.includes("lndia")) ||
-        t.includes("uidai") || t.includes("unique identification"))
+        t.includes("uidai") || t.includes("unique identification") ||
+        /gov\w*ment\w*\s*of\s*\w*ndia/i.test(t) ||  // fuzzy "Government of India"
+        /govenment\s*of/i.test(t))
         return "aadhaar";
 
-    if (t.includes("university") || t.includes("board") || t.includes("marks") || t.includes("examination"))
+    if (t.includes("university") || t.includes("board") ||
+        t.includes("marks") || t.includes("examination") ||
+        t.includes("pre-university") || t.includes("kseeb"))
         return "marks_card";
 
-    if (t.includes("grade") || t.includes("semester") || t.includes("gpa") || t.includes("cgpa"))
+    if (t.includes("grade") || t.includes("semester") ||
+        t.includes("gpa") || t.includes("cgpa"))
         return "grade_card";
 
     return "other";
