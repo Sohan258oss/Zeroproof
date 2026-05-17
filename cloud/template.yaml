@@ -1,44 +1,153 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  ZeroProof Verification Service
-  Serverless Plonk verification API emphasizing zero PII and statelessness.
+  AegisID — Zero-Knowledge Identity Verification Service
+  Serverless PLONK verification API with audit logging, nullifier tracking,
+  and rate limiting. Designed for zero-PII, stateless verification.
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Architectures:
+      - arm64
+    Timeout: 15
+    MemorySize: 512
+    Environment:
+      Variables:
+        AEGISID_AWS_ENABLED: "true"
+        AEGISID_DYNAMO_TABLE: !Ref AuditLogTable
+        AEGISID_NULLIFIER_TABLE: !Ref NullifierTable
+        AEGISID_CORS_ORIGIN: !Ref CorsOrigin
+        AEGISID_AUTH_ENABLED: !Ref AuthEnabled
+        AEGISID_JWT_SECRET: !Ref JwtSecret
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+  CorsOrigin:
+    Type: String
+    Default: "*"
+    Description: "Allowed CORS origin (restrict in production)"
+  AuthEnabled:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+  JwtSecret:
+    Type: String
+    Default: "change-me-in-production"
+    NoEcho: true
 
 Resources:
-  ZeroProofTable:
+
+  # ─────────────────────────────────────
+  # DynamoDB Tables
+  # ─────────────────────────────────────
+
+  AuditLogTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: ZeroProofVerificationLogs
+      TableName: !Sub "AegisID-AuditLogs-${Stage}"
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
-        - AttributeName: VerificationId
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
           AttributeType: S
       KeySchema:
-        - AttributeName: VerificationId
+        - AttributeName: PK
           KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: NullifierIndex
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
 
-  VerifyAgeFunction:
+  NullifierTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "AegisID-Nullifiers-${Stage}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: nullifierHash
+          AttributeType: S
+      KeySchema:
+        - AttributeName: nullifierHash
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  # ─────────────────────────────────────
+  # Lambda Functions
+  # ─────────────────────────────────────
+
+  VerifyFunction:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: !Sub "aegisid-verify-${Stage}"
       CodeUri: ../
       Handler: cloud/lambda_handler.handler
-      Runtime: nodejs18.x
-      Timeout: 15
-      MemorySize: 512
-      Architectures:
-        - x86_64
-      # Least Privilege IAM Role
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: !Ref ZeroProofTable
+            TableName: !Ref AuditLogTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref NullifierTable
       Events:
-        VerifyApi:
+        # V1 Routes
+        VerifyV1:
           Type: HttpApi
           Properties:
-            Path: /v1/verify-age
+            Path: /v1/verify
             Method: post
+        ProofTypesV1:
+          Type: HttpApi
+          Properties:
+            Path: /v1/proof-types
+            Method: get
+        # V2 Routes
+        VerifyV2:
+          Type: HttpApi
+          Properties:
+            Path: /v2/verify
+            Method: post
+        AuditV2:
+          Type: HttpApi
+          Properties:
+            Path: /v2/audit/{nullifier}
+            Method: get
+        # Utility
+        Health:
+          Type: HttpApi
+          Properties:
+            Path: /health
+            Method: get
+        Root:
+          Type: HttpApi
+          Properties:
+            Path: /
+            Method: get
 
 Outputs:
   ApiEndpoint:
-    Description: "API Gateway endpoint URL for Prod stage for Verify Age function"
-    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/v1/verify-age"
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  AuditLogTableName:
+    Description: "DynamoDB audit log table name"
+    Value: !Ref AuditLogTable
+  NullifierTableName:
+    Description: "DynamoDB nullifier table name"
+    Value: !Ref NullifierTable
+  Stage:
+    Description: "Deployment stage"
+    Value: !Ref Stage

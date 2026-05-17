@@ -1,33 +1,64 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-echo "Starting Cryptographic Pipeline (The Ceremony)"
+echo "=============================================="
+echo "  AegisID - Cryptographic Compilation Pipeline"
+echo "  (The Trusted Setup Ceremony)"
+echo "=============================================="
 
-# Paths
-CIRCUIT_NAME="age_check"
+CIRCUITS=("age_check" "range_check")
 CIRCUITS_DIR="./circuits"
 KEYS_DIR="./keys"
 
-# Create keys directory if it doesn't exist
 mkdir -p "$KEYS_DIR"
 
-# 1. Compile the circuit to r1cs and wasm
-echo "Compiling circuit..."
-circom "$CIRCUITS_DIR/$CIRCUIT_NAME.circom" --r1cs --wasm -o "$KEYS_DIR"
+# ─────────────────────────────────────────
+# PHASE 1: Powers of Tau (shared)
+# ─────────────────────────────────────────
 
-# 2. Powers of Tau (Setup)
-echo "Generating Powers of Tau..."
-# We need around 18 constraints, so power 10 is enough (2^10 = 1024)
-# Because ptau requires power >= 10, using 10.
-snarkjs powersoftau new bn128 10 "$KEYS_DIR/pot10_0000.ptau" -v
-snarkjs powersoftau contribute "$KEYS_DIR/pot10_0000.ptau" "$KEYS_DIR/pot10_final.ptau" --name="First contribution" -v -e="random entropy"
+PTAU_FINAL="$KEYS_DIR/pot14_final.ptau"
 
-# 3. PLONK Setup (No circuit-specific trusted setup, just universal setup)
-echo "Exporting PLONK setup..."
-snarkjs plonk setup "$KEYS_DIR/$CIRCUIT_NAME.r1cs" "$KEYS_DIR/pot10_final.ptau" "$KEYS_DIR/circuit_final.zkey"
+if [ ! -f "$PTAU_FINAL" ]; then
+    echo ""
+    echo "[Phase 1] Generating Powers of Tau (bn128, 2^14)..."
+    npx snarkjs powersoftau new bn128 14 "$KEYS_DIR/pot14_0000.ptau" -v
+    npx snarkjs powersoftau contribute "$KEYS_DIR/pot14_0000.ptau" "$KEYS_DIR/pot14_0001.ptau" \
+        --name="AegisID Phase 1" -v -e="aegisid trusted setup entropy $(date -Iseconds)"
+    npx snarkjs powersoftau prepare phase2 "$KEYS_DIR/pot14_0001.ptau" "$PTAU_FINAL" -v
+    echo "[Phase 1] Powers of Tau complete."
+else
+    echo ""
+    echo "[Phase 1] Powers of Tau already exist, skipping."
+fi
 
-# 4. Export verification key
-echo "Exporting verification key..."
-snarkjs zkey export verificationkey "$KEYS_DIR/circuit_final.zkey" "$KEYS_DIR/verification_key.json"
+# ─────────────────────────────────────────
+# PHASE 2: Compile each circuit
+# ─────────────────────────────────────────
 
-echo "Ceremony complete! WASM, verification key, and proving key (zkey) are in the $KEYS_DIR directory."
+for CIRCUIT in "${CIRCUITS[@]}"; do
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  Compiling: $CIRCUIT"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    echo "[2a] Compiling $CIRCUIT.circom -> R1CS + WASM..."
+    circom "$CIRCUITS_DIR/$CIRCUIT.circom" --r1cs --wasm -o "$KEYS_DIR"
+
+    echo "[2b] Circuit info:"
+    npx snarkjs r1cs info "$KEYS_DIR/$CIRCUIT.r1cs"
+
+    echo "[2c] Running PLONK setup..."
+    npx snarkjs plonk setup "$KEYS_DIR/$CIRCUIT.r1cs" "$PTAU_FINAL" "$KEYS_DIR/${CIRCUIT}_final.zkey"
+
+    echo "[2d] Exporting verification key..."
+    npx snarkjs zkey export verificationkey "$KEYS_DIR/${CIRCUIT}_final.zkey" "$KEYS_DIR/${CIRCUIT}_vkey.json"
+
+    echo "[OK] $CIRCUIT complete."
+done
+
+echo ""
+echo "=============================================="
+echo "  Ceremony Complete!"
+echo "  Circuits: ${CIRCUITS[*]}"
+echo "  Output:   $KEYS_DIR"
+echo "=============================================="

@@ -1,8 +1,11 @@
 $ErrorActionPreference = "Stop"
 
-Write-Host "Starting Cryptographic Pipeline (The Ceremony)"
+Write-Host "=============================================="
+Write-Host "  AegisID - Cryptographic Compilation Pipeline"
+Write-Host "  (The Trusted Setup Ceremony)"
+Write-Host "=============================================="
 
-$CIRCUIT_NAME = "age_check"
+$CIRCUITS = @("age_check", "range_check")
 $CIRCUITS_DIR = ".\circuits"
 $KEYS_DIR = ".\keys"
 
@@ -10,23 +13,53 @@ if (!(Test-Path $KEYS_DIR)) {
     New-Item -ItemType Directory -Path $KEYS_DIR | Out-Null
 }
 
-# 1. Compile the circuit to r1cs and wasm
-Write-Host "Compiling circuit..."
-.\circom.exe "$CIRCUITS_DIR\$CIRCUIT_NAME.circom" --r1cs --wasm -o "$KEYS_DIR"
-if ($LASTEXITCODE -ne 0) { throw "circom compilation failed" }
+# ─────────────────────────────────────────
+# PHASE 1: Powers of Tau (shared across all circuits)
+# ─────────────────────────────────────────
 
-# 2. Powers of Tau (Setup)
-Write-Host "Generating Powers of Tau..."
-npx snarkjs powersoftau new bn128 10 "$KEYS_DIR\pot10_0000.ptau" -v
-npx snarkjs powersoftau contribute "$KEYS_DIR\pot10_0000.ptau" "$KEYS_DIR\pot10_0001.ptau" --name="First contribution" -v -e="random entropy"
-npx snarkjs powersoftau prepare phase2 "$KEYS_DIR\pot10_0001.ptau" "$KEYS_DIR\pot10_final.ptau" -v
+$PTAU_FINAL = "$KEYS_DIR\pot14_final.ptau"
 
-# 3. PLONK Setup
-Write-Host "Exporting PLONK setup..."
-npx snarkjs plonk setup "$KEYS_DIR\$CIRCUIT_NAME.r1cs" "$KEYS_DIR\pot10_final.ptau" "$KEYS_DIR\circuit_final.zkey"
+if (!(Test-Path $PTAU_FINAL)) {
+    Write-Host "`n[Phase 1] Generating Powers of Tau (bn128, 2^14 = 16384 constraints)..."
+    npx snarkjs powersoftau new bn128 14 "$KEYS_DIR\pot14_0000.ptau" -v
+    npx snarkjs powersoftau contribute "$KEYS_DIR\pot14_0000.ptau" "$KEYS_DIR\pot14_0001.ptau" --name="AegisID Phase 1" -v -e="aegisid trusted setup entropy $(Get-Date -Format o)"
+    npx snarkjs powersoftau prepare phase2 "$KEYS_DIR\pot14_0001.ptau" $PTAU_FINAL -v
+    Write-Host "[Phase 1] Powers of Tau complete."
+} else {
+    Write-Host "`n[Phase 1] Powers of Tau already exist, skipping."
+}
 
-# 4. Export verification key
-Write-Host "Exporting verification key..."
-npx snarkjs zkey export verificationkey "$KEYS_DIR\circuit_final.zkey" "$KEYS_DIR\verification_key.json"
+# ─────────────────────────────────────────
+# PHASE 2: Compile each circuit
+# ─────────────────────────────────────────
 
-Write-Host "Ceremony complete! WASM, verification key, and proving key (zkey) are in the $KEYS_DIR directory."
+foreach ($CIRCUIT in $CIRCUITS) {
+    Write-Host "`n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    Write-Host "  Compiling: $CIRCUIT"
+    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    # 2a. Compile circuit to R1CS + WASM
+    Write-Host "[2a] Compiling $CIRCUIT.circom -> R1CS + WASM..."
+    .\circom.exe "$CIRCUITS_DIR\$CIRCUIT.circom" --r1cs --wasm -o "$KEYS_DIR"
+    if ($LASTEXITCODE -ne 0) { throw "circom compilation failed for $CIRCUIT" }
+
+    # 2b. Print circuit info
+    Write-Host "[2b] Circuit info:"
+    npx snarkjs r1cs info "$KEYS_DIR\$CIRCUIT.r1cs"
+
+    # 2c. PLONK Setup (no phase 2 ceremony needed — universal setup)
+    Write-Host "[2c] Running PLONK setup for $CIRCUIT..."
+    npx snarkjs plonk setup "$KEYS_DIR\$CIRCUIT.r1cs" $PTAU_FINAL "$KEYS_DIR\${CIRCUIT}_final.zkey"
+
+    # 2d. Export verification key
+    Write-Host "[2d] Exporting verification key..."
+    npx snarkjs zkey export verificationkey "$KEYS_DIR\${CIRCUIT}_final.zkey" "$KEYS_DIR\${CIRCUIT}_vkey.json"
+
+    Write-Host "[OK] $CIRCUIT compiled and setup complete."
+}
+
+Write-Host "`n=============================================="
+Write-Host "  Ceremony Complete!"
+Write-Host "  Circuits: $($CIRCUITS -join ', ')"
+Write-Host "  Output:   $KEYS_DIR"
+Write-Host "=============================================="

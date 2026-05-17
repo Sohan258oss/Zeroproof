@@ -1,20 +1,43 @@
 {
-  "name": "zeroproof",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "aegisid",
+  "version": "2.0.0",
+  "description": "Zero-Knowledge Identity Verification Protocol — prove who you are, reveal nothing.",
+  "main": "api/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node api/server.js",
+    "dev": "node api/server.js",
+    "test": "node tests/api.test.js",
+    "test:api": "node tests/api.test.js",
+    "web": "cd web && npm run dev",
+    "web:build": "cd web && npm run build",
+    "compile": "powershell -File scripts/compile.ps1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "zero-knowledge",
+    "zkp",
+    "plonk",
+    "snarkjs",
+    "circom",
+    "identity",
+    "verification",
+    "privacy",
+    "web3"
+  ],
+  "author": "AegisID",
+  "license": "MIT",
   "type": "commonjs",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
-    "aws-sdk": "^2.1693.0",
+    "@aws-sdk/client-dynamodb": "^3.1048.0",
+    "@aws-sdk/client-s3": "^3.1048.0",
     "circomlib": "^2.0.5",
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "snarkjs": "^0.7.6"
+    "multer": "^2.1.1",
+    "pdf-parse": "^2.4.5",
+    "snarkjs": "^0.7.6",
+    "tesseract.js": "^7.0.0"
   }
 }

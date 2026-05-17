@@ -1,182 +1,184 @@
-import { useState, useEffect } from 'react';
-import * as snarkjs from 'snarkjs';
+import { useState } from "react";
+import { Routes, Route } from "react-router-dom";
+import Navbar from "./components/Navbar";
+import ProofGenerator from "./components/ProofGenerator";
+import ProofTimeline from "./components/ProofTimeline";
+import VerificationBadge from "./components/VerificationBadge";
+import StatsPanel from "./components/StatsPanel";
+import ProofExplorer from "./components/ProofExplorer";
+import { useProver } from "./hooks/useProver";
 
-function App() {
-  const [birthYear, setBirthYear] = useState('');
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-  const [ageLimit, setAgeLimit] = useState(18);
-  const [status, setStatus] = useState('Idle');
-  const [proofTime, setProofTime] = useState(null);
-  const [verificationResult, setVerificationResult] = useState(null);
-  const [isProving, setIsProving] = useState(false);
-  const [rawProof, setRawProof] = useState(null);
-  const [showProof, setShowProof] = useState(false);
+// Vault pages
+import VaultDashboard from "./pages/VaultDashboard";
+import DocumentUpload from "./pages/DocumentUpload";
+import CredentialDetail from "./pages/CredentialDetail";
+import PublicVerify from "./pages/PublicVerify";
 
-  const generateProof = async () => {
-    setIsProving(true);
-    setStatus('Generating Zero-Knowledge Proof (locally)...');
-    setVerificationResult(null);
-    setProofTime(null);
-    
+function ZKDemo() {
+  const {
+    stage, stageInfo, progress, proofTime, result,
+    error, rawProof, isProving, generateAndVerify, reset, STAGES
+  } = useProver();
+
+  const [proofCount, setProofCount] = useState(0);
+  const [showExplorer, setShowExplorer] = useState(false);
+
+  const handleGenerate = async (params) => {
     try {
-      if (!birthYear) throw new Error("Please enter your birth year");
-      
-      const startTime = performance.now();
-      
-      // Proving entirely in the browser using the WASM and zkey in public folder
-      const { proof, publicSignals } = await snarkjs.plonk.fullProve(
-        { 
-          birthYear: Number(birthYear),
-          currentYear: Number(currentYear),
-          ageLimit: Number(ageLimit)
-        }, 
-        "/age_check.wasm", 
-        "/circuit_final.zkey"
-      );
-      
-      const endTime = performance.now();
-      setProofTime((endTime - startTime).toFixed(2));
-      setRawProof(proof);
-      setStatus('Proof generated! Sending to Verifier API...');
-
-      // Send to local Express backend (assuming it's running on 3000)
-      const res = await fetch("http://localhost:3000/v1/verify-age", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ proof, publicSignals })
-      });
-
-      const data = await res.json();
-      setVerificationResult(data);
-      setStatus(data.success ? 'Verification Successful!' : 'Verification Failed!');
-      
-    } catch (err) {
-      console.error(err);
-      setStatus('Error: ' + err.message);
-    } finally {
-      setIsProving(false);
+      await generateAndVerify(params);
+      setProofCount((c) => c + 1);
+    } catch {
+      // Error is already handled by useProver
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800 to-slate-950 font-sans">
-      <div className="w-full max-w-lg glass-panel rounded-3xl p-8 relative overflow-hidden">
-        
-        {/* Decorative background glow */}
-        <div className="absolute -top-32 -right-32 w-64 h-64 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
-        <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-sky-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
-
-        <div className="relative z-10">
-          <h1 className="text-4xl font-extrabold mb-2 tracking-tight text-white mb-8">
-            <span className="gradient-text">ZeroProof</span> Portal
-          </h1>
-          
-          <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-            Prove your age without revealing your birth year. The math happens locally in your browser, and only the proof is sent to the server.
-          </p>
-
-          <div className="space-y-5 mb-8">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Birth Year (Private Input)</label>
-              <input
-                type="number"
-                value={birthYear}
-                onChange={(e) => setBirthYear(e.target.value)}
-                placeholder="e.g. 1995"
-                className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all placeholder:text-slate-600"
-              />
-            </div>
-            
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-slate-500 mb-1">Current Year</label>
-                <input
-                  type="number"
-                  value={currentYear}
-                  disabled
-                  className="w-full bg-slate-900/30 border border-transparent rounded-xl px-4 py-3 text-slate-500 cursor-not-allowed"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-slate-400 mb-1">Age Required (Pub)</label>
-                <input
-                  type="number"
-                  value={ageLimit}
-                  onChange={(e) => setAgeLimit(e.target.value)}
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                />
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={generateProof}
-            disabled={isProving}
-            className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all transform active:scale-[0.98] ${
-              isProving 
-                ? 'bg-slate-700 cursor-wait' 
-                : 'bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 hover:shadow-indigo-500/25'
-            }`}
-          >
-            {isProving ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Processing Cryptography...
-              </span>
-            ) : 'Generate & Verify ZK Proof'}
-          </button>
-
-          {/* Status Console */}
-          <div className="mt-8 bg-slate-950 rounded-xl p-4 border border-slate-800 font-mono text-xs text-slate-400 h-32 overflow-y-auto">
-            <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-800">
-              <span className="text-slate-500 font-semibold tracking-wider">TERMINAL</span>
-              {proofTime && <span className="text-sky-400">Proof time: {proofTime}ms</span>}
-            </div>
-            
-            <div className={`mt-2 ${status.includes('Error') ? 'text-red-400' : 'text-emerald-400'}`}>
-              &gt; {status}
-            </div>
-
-            {verificationResult && (
-              <div className="mt-3 text-slate-300 whitespace-pre-wrap break-all">
-                {JSON.stringify(verificationResult, null, 2)}
-              </div>
-            )}
-          </div>
-
-          {/* Cryptography Keys / Raw Proof Viewer */}
-          {rawProof && (
-            <div className="mt-4">
-              <button 
-                onClick={() => setShowProof(!showProof)}
-                className="text-xs text-slate-400 hover:text-sky-400 font-medium tracking-wide flex items-center gap-1 transition-colors"
-              >
-                {showProof ? '▼ Hide' : '▶ Show'} Raw Cryptographic Proof
-              </button>
-              
-              {showProof && (
-                <div className="mt-2 bg-slate-950/80 rounded-xl p-4 border border-slate-700/50 overflow-hidden relative group">
-                  <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      onClick={() => navigator.clipboard.writeText(JSON.stringify(rawProof, null, 2))}
-                      className="bg-slate-800 hover:bg-slate-700 text-xs text-white px-2 py-1 rounded"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                  <pre className="text-[10px] text-emerald-400/80 font-mono tracking-tighter whitespace-pre-wrap break-all max-h-48 overflow-y-auto custom-scrollbar">
-                    {JSON.stringify(rawProof, null, 2)}
-                  </pre>
-                </div>
-              )}
-            </div>
-          )}
-
-        </div>
+    <>
+      {/* Background effects */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-sky-500 rounded-full mix-blend-multiply filter blur-[150px] opacity-[0.03] animate-float"></div>
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-indigo-600 rounded-full mix-blend-multiply filter blur-[150px] opacity-[0.04] animate-float-delayed"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-violet-600 rounded-full mix-blend-multiply filter blur-[200px] opacity-[0.02]"></div>
       </div>
+
+      {/* Hero Section */}
+      <section className="relative pt-28 pb-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-medium mb-6 animate-fade-in">
+            <div className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></div>
+            Zero-Knowledge Identity Protocol
+          </div>
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] mb-4 animate-fade-in-up">
+            Prove who you are.
+            <br />
+            <span className="gradient-text">Reveal nothing.</span>
+          </h1>
+          <p className="text-slate-400 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed animate-fade-in-up-delayed">
+            AegisID uses zero-knowledge proofs to verify your identity attributes
+            without exposing personal data. The cryptography runs entirely in your browser.
+          </p>
+        </div>
+      </section>
+
+      {/* Main Dashboard */}
+      <section className="relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-12">
+        {/* Stats */}
+        <div className="mb-6 animate-fade-in">
+          <StatsPanel proofTime={proofTime} proofCount={proofCount} stage={stage} />
+        </div>
+
+        {/* Main Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div className="animate-fade-in">
+            <ProofGenerator onGenerate={handleGenerate} isProving={isProving} />
+          </div>
+          <div className="space-y-6 animate-fade-in">
+            <ProofTimeline stage={stage} progress={progress} STAGES={STAGES} />
+            <VerificationBadge result={result} error={error} proofTime={proofTime} stage={stage} />
+          </div>
+        </div>
+
+        {/* Proof Explorer Toggle */}
+        {(rawProof || result) && (
+          <div className="animate-fade-in">
+            <button
+              id="toggle-explorer-btn"
+              onClick={() => setShowExplorer(!showExplorer)}
+              className="text-xs text-slate-500 hover:text-sky-400 font-medium tracking-wide flex items-center gap-1.5 transition-colors mb-4 group"
+            >
+              <svg className={`w-3 h-3 transition-transform ${showExplorer ? "rotate-90" : ""}`} viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+              <span className="group-hover:underline underline-offset-2">
+                {showExplorer ? "Hide" : "Show"} Cryptographic Details
+              </span>
+            </button>
+            {showExplorer && <ProofExplorer rawProof={rawProof} result={result} />}
+          </div>
+        )}
+
+        {/* Reset Button */}
+        {stage === "complete" || stage === "error" ? (
+          <div className="mt-6 text-center animate-fade-in">
+            <button
+              id="reset-btn"
+              onClick={reset}
+              className="px-6 py-2 text-xs font-medium text-slate-400 hover:text-white border border-slate-700/50 hover:border-slate-600 rounded-xl transition-all hover:bg-white/5"
+            >
+              New Verification
+            </button>
+          </div>
+        ) : null}
+      </section>
+
+      {/* Architecture Section */}
+      <section id="arch" className="relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto py-16 border-t border-white/5">
+        <h2 className="text-2xl font-bold text-white mb-8 tracking-tight">
+          How It <span className="gradient-text">Works</span>
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[
+            {
+              step: "01",
+              title: "Client-Side Proving",
+              desc: "Your birth year stays in the browser. A PLONK proof is generated using WebAssembly — no data is sent to any server.",
+              color: "from-sky-500 to-cyan-500"
+            },
+            {
+              step: "02",
+              title: "Server-Side Verification",
+              desc: "Only the mathematical proof reaches our API. The verifier checks cryptographic validity in <50ms without knowing your age.",
+              color: "from-indigo-500 to-violet-500"
+            },
+            {
+              step: "03",
+              title: "Nullifier Protection",
+              desc: "A Poseidon hash prevents replay attacks. Each proof context generates a unique nullifier — no double-spending identity.",
+              color: "from-violet-500 to-purple-500"
+            }
+          ].map((item) => (
+            <div key={item.step} className="glass-panel rounded-2xl p-6 group hover:bg-slate-800/40 transition-all">
+              <div className={`text-3xl font-black bg-gradient-to-r ${item.color} bg-clip-text text-transparent mb-3 opacity-40 group-hover:opacity-70 transition-opacity`}>
+                {item.step}
+              </div>
+              <h3 className="text-base font-semibold text-white mb-2">{item.title}</h3>
+              <p className="text-sm text-slate-500 leading-relaxed">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-white/5 py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <span className="gradient-text font-bold">AegisID</span>
+            <span>·</span>
+            <span>Zero-Knowledge Identity Protocol</span>
+          </div>
+          <div className="flex items-center gap-4 text-xs text-slate-600">
+            <span>PLONK · BN128 · Poseidon</span>
+            <a href="https://github.com/Sohan258oss/Zeroproof" className="hover:text-sky-400 transition-colors" target="_blank" rel="noopener noreferrer">
+              GitHub ↗
+            </a>
+          </div>
+        </div>
+      </footer>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <div className="min-h-screen bg-slate-950 text-white">
+      <Navbar />
+      <Routes>
+        <Route path="/" element={<ZKDemo />} />
+        <Route path="/vault" element={<VaultDashboard />} />
+        <Route path="/vault/upload" element={<DocumentUpload />} />
+        <Route path="/vault/credential/:id" element={<CredentialDetail />} />
+        <Route path="/verify/:token" element={<PublicVerify />} />
+      </Routes>
     </div>
   );
 }

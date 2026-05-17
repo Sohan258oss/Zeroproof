@@ -5,22 +5,26 @@ yarn-debug.log*
 yarn-error.log*
 .npm/
 .env
+.env.local
+.env.*.local
 
 # Build outputs
 dist/
 build/
 out/
+.aws-sam/
 
 # Circom / SnarkJS / zkSNARKs artifacts
-# These files are often large and generated from source circuits
+# These files are large and generated from source circuits
 *.r1cs
 *.ptau
 *.zkey
 *.wasm
 *.sym
 *.exe
+*.wtns
 
-# Example proof and public inputs (often generated during testing)
+# Example proof and public inputs (generated during testing)
 proof.json
 public.json
 
@@ -39,3 +43,12 @@ Desktop.ini
 .idea/
 *.sujet
 *.swp
+*.swo
+*~
+
+# Document vault data (encrypted docs, credentials, shares)
+data/
+
+# Coverage
+coverage/
+.nyc_output/
