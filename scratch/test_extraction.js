@@ -4,7 +4,16 @@
 
 // Inline the extraction functions (matching documentAnalyzer.js)
 function cleanNameLine(line) {
-    return line.replace(/[^A-Za-z\s]/g, "").replace(/\s+/g, " ").trim();
+    let rest = line.replace(/\b(Register|Reg|Roll|Enroll|Number|No|Male|Female|DOB|Date|Birth|Year|Address|Son|Daughter|Father|Mother|S\/O|D\/O|C\/O|W\/O)\b.*/i, "");
+    let cleaned = rest.replace(/[^A-Za-z\s]/g, " ");
+    let words = cleaned.split(/\s+/).filter(w => w.length > 0);
+    let nameWords = [];
+    for (const w of words) {
+        if (w === w.toLowerCase() && w.length > 1) break;
+        if (["register", "reg", "roll", "number", "no", "male", "female", "dob", "date", "birth"].includes(w.toLowerCase())) break;
+        nameWords.push(w);
+    }
+    return nameWords.join(" ").trim();
 }
 
 function looksLikeName(cleaned) {
@@ -81,16 +90,17 @@ function extractName(text, documentType) {
     // STRATEGY 1: Label
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
+        if (line.match(/(?:Father|Mother|Husband|Wife|Spouse|Parent)'?s?\s*Name/i)) continue;
+        
         const labelMatch = line.match(/(?:Candidate'?s?\s*|Student\s*)?(?:Name|naam)\s*[:;\-=]?\s*(.*)/i);
         if (!labelMatch) continue;
-        let rest = labelMatch[1];
-        rest = rest.replace(/\b(Register|Reg|Roll|Enroll|Number|No|Male|Female|DOB|Date|Birth|Year|Address|Son|Daughter|Father|Mother|S\/O|D\/O|C\/O|W\/O)\b.*/i, "");
-        let val = cleanNameLine(rest);
-        if (val.length >= 3 && looksLikeName(val)) return val;
+        
+        let val = cleanNameLine(labelMatch[1]);
+        if (val.length >= 3 && looksLikeName(val) && !isNoisyLine(val)) return val;
+        
         for (let j = i + 1; j < Math.min(i + 4, lines.length); j++) {
-            let nextRest = lines[j];
-            nextRest = nextRest.replace(/\b(Register|Reg|Roll|Enroll|Number|No|Male|Female|DOB|Date|Birth|Year|Address)\b.*/i, "");
-            const nextCleaned = cleanNameLine(nextRest);
+            if (lines[j].match(/(?:Father|Mother|Husband|Wife|Spouse|Parent)'?s?\s*Name/i)) break;
+            const nextCleaned = cleanNameLine(lines[j]);
             if (nextCleaned.length >= 3 && looksLikeName(nextCleaned) && !isNoisyLine(nextCleaned)) return nextCleaned;
         }
     }
@@ -233,6 +243,26 @@ Ee
 6269 2842 6059
 SS, esweT®, SI, rho=d`,
         expectName: "Yashas P Phatak",
+        expectDOB: "2006-07-09"
+    },
+    {
+        name: "REAL 10th marks card (user's actual OCR with Father's Name)",
+        text: `dh dnd ik kn dn Ce nN
+gE 22038716 tw dy we or
+LENE os GOVERNMENT OF KARNATAKA {
+CX) serie TOE do TOE, 0B?
+4 “ i (
+Ir Karnataka Secondary Education Examination Board /
+I BE - .
+CEE 03 Bu Toile Hines 3 / M rhs Statement cum Certificate / NL
+Sir EE eR El | il
+Ni “This is to certify that the below mentioned candidate has passed $.5.L.C. Examination. 115784358 7
+i #acocid Koad / Register No. : 20220238134 ortsd- SF / Month Year: APRIL-2022 \\
+ATE IF TH Er Lhe » [i
+| @5/ Name: YASHAS P PHATAK id i onl =
+| Sodded #cs/ Father's Name © PRAKASH PHATAK au #
+# py. 9-07-2006 NINTH - JULY - TWO THOUSAND SIX. (`,
+        expectName: "YASHAS P PHATAK",
         expectDOB: "2006-07-09"
     },
     {

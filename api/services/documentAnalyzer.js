@@ -103,10 +103,26 @@ async function analyzeDocument(buffer, mimeType = "") {
  * Clean a line to extract only the alphabetic name portion
  */
 function cleanNameLine(line) {
-    return line
-        .replace(/[^A-Za-z\s]/g, "")  // Remove non-alpha
-        .replace(/\s+/g, " ")          // Normalize spaces
-        .trim();
+    // Truncate at common noise indicators
+    let rest = line.replace(/\b(Register|Reg|Roll|Enroll|Number|No|Male|Female|DOB|Date|Birth|Year|Address|Son|Daughter|Father|Mother|S\/O|D\/O|C\/O|W\/O)\b.*/i, "");
+    
+    // Remove non-alphabetic characters
+    let cleaned = rest.replace(/[^A-Za-z\s]/g, " ");
+    let words = cleaned.split(/\s+/).filter(w => w.length > 0);
+    
+    // Truncate at lowercase words that are longer than 1 character (which are usually OCR noise or labels like "id", "onl")
+    let nameWords = [];
+    for (const w of words) {
+        if (w === w.toLowerCase() && w.length > 1) {
+            break;
+        }
+        if (["register", "reg", "roll", "number", "no", "male", "female", "dob", "date", "birth"].includes(w.toLowerCase())) {
+            break;
+        }
+        nameWords.push(w);
+    }
+    
+    return nameWords.join(" ").trim();
 }
 
 /**
@@ -217,30 +233,32 @@ function extractName(text, documentType) {
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
 
+        // Reject if this matches Father's Name, Mother's Name, Husband's Name etc.
+        if (line.match(/(?:Father|Mother|Husband|Wife|Spouse|Parent)'?s?\s*Name/i)) {
+            continue;
+        }
+
         // Match various name label patterns (including "Candidate's Name")
         const labelMatch = line.match(
             /(?:Candidate'?s?\s*|Student\s*)?(?:Name|naam)\s*[:;\-=]?\s*(.*)/i
         );
         if (!labelMatch) continue;
 
-        let rest = labelMatch[1];
-
-        // Clean: remove everything after known non-name tokens
-        rest = rest.replace(/\b(Register|Reg|Roll|Enroll|Number|No|Male|Female|DOB|Date|Birth|Year|Address|Son|Daughter|Father|Mother|S\/O|D\/O|C\/O|W\/O)\b.*/i, "");
-
-        let val = cleanNameLine(rest);
+        let val = cleanNameLine(labelMatch[1]);
 
         // CASE A: Name on SAME line as label
-        if (val.length >= 3 && looksLikeName(val)) {
+        if (val.length >= 3 && looksLikeName(val) && !isNoisyLine(val)) {
             console.log("[Name] Found via same-line label:", val);
             return val;
         }
 
         // CASE B: "NAME:" alone → value on NEXT line(s)
         for (let j = i + 1; j < Math.min(i + 4, lines.length); j++) {
-            let nextRest = lines[j];
-            nextRest = nextRest.replace(/\b(Register|Reg|Roll|Enroll|Number|No|Male|Female|DOB|Date|Birth|Year|Address)\b.*/i, "");
-            const nextCleaned = cleanNameLine(nextRest);
+            // Reject Father/Mother lines during lookahead
+            if (lines[j].match(/(?:Father|Mother|Husband|Wife|Spouse|Parent)'?s?\s*Name/i)) {
+                break;
+            }
+            const nextCleaned = cleanNameLine(lines[j]);
             if (nextCleaned.length >= 3 && looksLikeName(nextCleaned) && !isNoisyLine(nextCleaned)) {
                 console.log("[Name] Found via multi-line label:", nextCleaned);
                 return nextCleaned;
