@@ -41,7 +41,8 @@ async function issueCredential({ documentId, documentHash, attributes, credentia
     const now = new Date();
 
     // Extract birth year from DOB
-    const dob = new Date(attributes.dateOfBirth);
+    const dobString = attributes.dateOfBirth || attributes.dob;
+    const dob = new Date(dobString);
     const birthYear = dob.getFullYear();
     const currentYear = now.getFullYear();
     const age = currentYear - birthYear;
@@ -98,10 +99,10 @@ async function issueCredential({ documentId, documentHash, attributes, credentia
         documentHash,
         credentialType,
         attributes: {
-            fullName: attributes.fullName,
-            dateOfBirth: attributes.dateOfBirth,
+            fullName: attributes.fullName || attributes.name,
+            dateOfBirth: attributes.dateOfBirth || attributes.dob,
             documentType: attributes.documentType,
-            nameHash: crypto.createHash("sha256").update(attributes.fullName || "").digest("hex").slice(0, 16)
+            nameHash: crypto.createHash("sha256").update(attributes.fullName || attributes.name || "").digest("hex").slice(0, 16)
         },
         zkProof: proof ? {
             proof,

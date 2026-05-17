@@ -190,7 +190,9 @@ export default function CredentialDetail() {
               {shareLinks.map(s => (
                 <div key={s.token} className="flex items-center gap-3 py-3 px-4 rounded-xl bg-slate-900/30 border border-white/5">
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-white font-mono truncate">{window.location.origin}/verify/{s.token}</p>
+                    <a href={`${window.location.origin}/verify/${s.token}`} target="_blank" rel="noopener noreferrer" className="text-xs text-sky-400 font-mono truncate underline hover:text-sky-300 block">
+                      {window.location.origin}/verify/{s.token}
+                    </a>
                     <p className="text-[10px] text-slate-500 mt-0.5">
                       {s.organizationName || "Public"} · Expires {new Date(s.expiresAt).toLocaleDateString()} · {s.verificationCount} checks
                     </p>
