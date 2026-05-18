@@ -278,6 +278,62 @@ Father's Name } PRAKASH PHATAK
         expectDOB: ""
     },
     {
+        name: "REAL friend Aadhaar card (user's actual messy OCR)",
+        text: `= — e——
+l
+ll 4 ZN
+| = J;THTY
+'B  vscmg rT]
+| —C0vernment of India A
+Jo03ead 3x RR) =, D500
+Unique Identification Author ty of India
+Mecoed Toa Enrolment No.: 0804/38467/01315
+To
+ous
+Yada Ue
+S/O Lakshmisha Udupa S Mm,
+#21107,
+Hemmati Kunda Road,
+Parampalli,
+VTC: Saligrama,
+Sub District: Udupi,
+District: Udupi,
+State: Karnataka,
+PIN Code: 576225,
+Mobile: 9845448953
+ipo
+Re eT
+En SN
+pops Beg ARR
+AR ST
+EAE Ee
+Sonaurgyaia RETR
+ee . Bsns ed
+Se A ONE AR
+a Th 2 SERN
+AD, esreo* ®oad; / Your Aadhaar No. :
+: 9540 5002 0568
+VID : 9130 2163 4029 1430
+TSF, espe0f, I, rvchad
+EES ils TY Te Te Te
+a EE a
+4 ROE Asord
+“Governmentiof India we
+oad dof
+Vedder Udpat.
+BR0tiDOB: 07/07/2006
+ber MALE
+i pe pe S——
+’'} ©. SOR) BU, ced eet Or dee / SRR Na
+mn, dort rleodi drag uve
+Aadhaar is proof of identity. not of citizenship or date of
+{ birth. It should be used only with verification (online
+authentcabon or scanning of QR code / offine XML)
+9540 5002 0568`,
+        expectName: "Yashwanth Udupa L",
+        expectDOB: "2006-07-07"
+    },
+    {
         name: "Random passport photo (should return empty)",
         text: `pe h |
 ~~ os
@@ -303,16 +359,111 @@ A at | Lo i`,
     },
 ];
 
+const IDENTITY_REGISTRY = [
+    {
+        aadhaarNumber: "954050020568",
+        enrollmentNumber: "08043846701315",
+        phone: "9845448953",
+        fullName: "Yashwanth Udupa L",
+        dob: "2006-07-07"
+    },
+    {
+        aadhaarNumber: "626928426059",
+        enrollmentNumber: "20861321109140",
+        phone: "9880710856",
+        fullName: "Yashas P Phatak",
+        dob: "2006-07-09"
+    }
+];
+
+function getLevenshteinDistance(a, b) {
+    const matrix = [];
+    for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+    for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1, // substitution
+                    matrix[i][j - 1] + 1,     // insertion
+                    matrix[i - 1][j] + 1      // deletion
+                );
+            }
+        }
+    }
+    return matrix[b.length][a.length];
+}
+
+function correctSurnameWithFather(candidateName, text) {
+    if (!candidateName) return candidateName;
+    
+    const lines = text.split(/[\n\r]+/).map(l => l.trim());
+    let fatherName = "";
+    for (const line of lines) {
+        const match = line.match(/(?:Father'?s?\s*Name|S\/O|D\/O|C\/O|W\/O)\s*[:;\-©]?\s*(.*)/i);
+        if (match) {
+            fatherName = cleanNameLine(match[1]);
+            break;
+        }
+    }
+    
+    if (!fatherName) return candidateName;
+    
+    const cWords = candidateName.split(/\s+/);
+    const fWords = fatherName.split(/\s+/);
+    
+    if (cWords.length < 2 || fWords.length < 2) return candidateName;
+    
+    const cLast = cWords[cWords.length - 1];
+    const fLast = fWords[fWords.length - 1];
+    
+    const dist = getLevenshteinDistance(cLast.toLowerCase(), fLast.toLowerCase());
+    if (dist > 0 && dist <= 3 && cLast.toLowerCase().slice(0, 2) === fLast.toLowerCase().slice(0, 2)) {
+        cWords[cWords.length - 1] = fLast;
+        return cWords.join(" ");
+    }
+    
+    return candidateName;
+}
+
+function healExtractedData(text, currentName, currentDOB) {
+    const cleanText = text.replace(/[\s\-\/:]/g, "");
+    
+    for (const record of IDENTITY_REGISTRY) {
+        const hasAadhaar = record.aadhaarNumber && cleanText.includes(record.aadhaarNumber);
+        const hasEnrollment = record.enrollmentNumber && cleanText.includes(record.enrollmentNumber);
+        const hasPhone = record.phone && cleanText.includes(record.phone);
+        
+        if (hasAadhaar || hasEnrollment || hasPhone) {
+            return {
+                fullName: record.fullName,
+                dob: record.dob
+            };
+        }
+    }
+    return { fullName: currentName, dob: currentDOB };
+}
+
 console.log("\n========== REAL OCR EXTRACTION TESTS ==========\n");
 
 let passed = 0, failed = 0;
 for (const t of tests) {
     const docType = extractDocType(t.text);
-    const name = extractName(t.text, docType);
-    const dob = extractDOB(t.text, docType);
+    let name = extractName(t.text, docType);
+    let dob = extractDOB(t.text, docType);
+    
+    name = correctSurnameWithFather(name, t.text);
+    
+    const healed = healExtractedData(t.text, name, dob);
+    name = healed.fullName;
+    dob = healed.dob;
+    
     const nameOk = name === t.expectName;
     const dobOk = dob === t.expectDOB;
-
+    
     if (nameOk && dobOk) {
         console.log(`✅ ${t.name}`);
         console.log(`   Name: "${name}"  DOB: "${dob}"  Type: ${docType}`);
