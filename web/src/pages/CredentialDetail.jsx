@@ -65,19 +65,21 @@ export default function CredentialDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="w-10 h-10 border-2 border-sky-500/30 border-t-sky-400 rounded-full animate-spin" />
+      <div className="min-h-screen bg-[#020204] flex items-center justify-center">
+        <div className="w-8 h-8 border border-emerald-500/20 border-t-emerald-450 rounded-full animate-spin" />
       </div>
     );
   }
 
   if (error || !credential) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-4">
-        <div className="glass-panel rounded-2xl p-8 text-center max-w-md">
-          <p className="text-red-400 font-medium mb-2">Credential Not Found</p>
-          <p className="text-xs text-slate-500 mb-4">{error}</p>
-          <button onClick={() => navigate("/vault")} className="px-4 py-2 text-xs text-white bg-white/5 border border-white/10 rounded-xl">Back to Vault</button>
+      <div className="min-h-screen bg-[#020204] text-[#e2fce8] flex items-center justify-center px-4">
+        <div className="glass-panel border-rose-500/20 bg-rose-500/5 rounded-2xl p-8 text-center max-w-md shadow-2xl">
+          <p className="text-xs font-mono font-bold text-rose-500 mb-2 uppercase tracking-widest">CREDENTIAL_NOT_FOUND</p>
+          <p className="text-[11px] text-slate-400 font-mono mb-6">{error}</p>
+          <button onClick={() => navigate("/vault")} className="px-5 py-2.5 rounded-xl btn-cyber-secondary text-xs font-mono tracking-widest">
+            RETURN_TO_VAULT
+          </button>
         </div>
       </div>
     );
@@ -86,85 +88,95 @@ export default function CredentialDetail() {
   const c = credential;
   const rows = [
     ["Credential ID", c.id],
-    ["Type", c.credentialType],
+    ["Type", c.credentialType === "age_verification" ? "Age Verification" : c.credentialType],
     ["Status", c.status],
-    ["Holder", c.attributes?.fullName || "—"],
-    ["Document Type", c.attributes?.documentType || "—"],
-    ["Age", c.age],
-    ["Eligible", c.isEligible ? "Yes ✓" : "No ✗"],
+    ["Holder", c.attributes?.fullName || "Hidden (ZK-secured)"],
+    ["Document Type", c.attributes?.documentType || "Hidden (ZK-secured)"],
+    ["Age", c.age || "18+ (ZK-proven)"],
+    ["Eligible", c.isEligible ? "YES ✓" : "NO ✗"],
     ["Issued", new Date(c.issuedAt).toLocaleString()],
     ["Expires", new Date(c.expiresAt).toLocaleString()],
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/3 w-[500px] h-[500px] bg-violet-500 rounded-full mix-blend-multiply filter blur-[150px] opacity-[0.03] animate-float" />
+    <div className="min-h-screen bg-[#020204] text-[#e2fce8] relative">
+      {/* Background Grids */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden bg-[linear-gradient(to_right,#00ff6606_1px,transparent_1px),linear-gradient(to_bottom,#00ff6606_1px,transparent_1px)] bg-[size:32px_32px]">
+        <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-emerald-600 rounded-full mix-blend-screen filter blur-[180px] opacity-[0.05] animate-float" />
+        <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-[#00ff66] rounded-full mix-blend-screen filter blur-[180px] opacity-[0.03]" />
       </div>
 
       <section className="relative pt-28 pb-16 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
-        <button onClick={() => navigate("/vault")} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-white transition-colors mb-6">
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
-          Back to Vault
+        <button onClick={() => navigate("/vault")} className="inline-flex items-center gap-1.5 text-[10px] font-mono text-emerald-300 hover:text-emerald-400 bg-emerald-950/20 border border-emerald-950 hover:border-emerald-500/20 px-3 py-1.5 rounded-lg mb-6 transition-all cursor-pointer">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          RETURN_TO_VAULT
         </button>
 
         {/* Header */}
         <div className="flex items-start gap-4 mb-8 animate-fade-in-up">
-          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ${c.isEligible ? "bg-gradient-to-br from-emerald-500/20 to-teal-500/20 text-emerald-400" : "bg-gradient-to-br from-red-500/20 to-orange-500/20 text-red-400"}`}>
+          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 border ${
+            c.isEligible 
+              ? "bg-[#00ff66]/10 border-[#00ff66]/20 text-[#00ff66]" 
+              : "bg-rose-500/10 border-rose-500/20 text-rose-500"
+          }`}>
             <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>{c.isEligible && <polyline points="9 12 11 14 15 10"/>}</svg>
           </div>
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight">Credential Details</h1>
-            <p className="text-xs text-slate-500 font-mono mt-1">{c.id}</p>
+            <h1 className="text-xl font-mono font-extrabold tracking-widest text-slate-100 uppercase">CREDENTIAL_DETAILS</h1>
+            <p className="text-[10px] text-emerald-500/60 font-mono mt-1">{c.id}</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Details */}
-          <div className="glass-panel rounded-2xl p-6 animate-fade-in">
-            <h3 className="text-sm font-semibold text-white mb-4">Metadata</h3>
-            <div className="space-y-0">
+          <div className="lg:col-span-7 glass-panel rounded-2xl p-6 animate-fade-in shadow-2xl">
+            <h3 className="text-xs font-mono font-bold text-[#00ff66] uppercase tracking-widest mb-4">METADATA_REGISTRY</h3>
+            <div className="space-y-1">
               {rows.map(([label, value]) => (
-                <div key={label} className="flex justify-between py-2.5 border-b border-white/5 last:border-0">
-                  <span className="text-xs text-slate-500">{label}</span>
-                  <span className={`text-xs font-medium ${label === "Eligible" ? (c.isEligible ? "text-emerald-400" : "text-red-400") : "text-white"}`}>{value}</span>
+                <div key={label} className="flex justify-between items-center py-2.5 px-3 rounded-lg border-b border-emerald-950/40 last:border-0 hover:bg-emerald-950/20 transition-colors">
+                  <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider font-semibold">{label}</span>
+                  <span className={`text-xs font-mono font-bold text-right truncate max-w-[200px] ${
+                    label === "Eligible" 
+                      ? (c.isEligible ? "text-[#00ff66]" : "text-rose-500") 
+                      : (label === "Status" && c.status === "active" ? "text-[#00ff66]" : "text-slate-100")
+                  }`}>{value}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* ZK Proof & Binding */}
-          <div className="space-y-6">
-            <div className="glass-panel rounded-2xl p-6 animate-fade-in">
-              <h3 className="text-sm font-semibold text-white mb-4">ZK Proof</h3>
+          <div className="lg:col-span-5 space-y-6">
+            <div className="glass-panel rounded-2xl p-6 animate-fade-in shadow-2xl">
+              <h3 className="text-xs font-mono font-bold text-[#00ff66] uppercase tracking-widest mb-4">CRYPTOGRAPHIC_PROOF</h3>
               {c.zkProof ? (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {[["Status", c.zkProof.verified ? "Verified ✓" : "Invalid"], ["System", c.zkProof.proofSystem], ["Circuit", c.zkProof.circuit], ["Curve", c.zkProof.curve]].map(([l,v]) => (
-                    <div key={l} className="flex justify-between py-2 border-b border-white/5 last:border-0">
-                      <span className="text-xs text-slate-500">{l}</span>
-                      <span className={`text-xs font-medium ${l === "Status" && c.zkProof.verified ? "text-emerald-400" : "text-sky-400"}`}>{v}</span>
+                    <div key={l} className="flex justify-between items-center py-2 px-3 border-b border-emerald-950/40 last:border-0 hover:bg-emerald-950/25 transition-colors">
+                      <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider font-semibold">{l}</span>
+                      <span className={`text-xs font-mono font-bold ${l === "Status" && c.zkProof.verified ? "text-[#00ff66]" : "text-emerald-500"}`}>{v}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-slate-500">No ZK proof generated (circuit files may be missing).</p>
+                <p className="text-[10px] font-mono text-slate-500 bg-emerald-950/10 p-3 rounded-xl border border-emerald-950/40">No ZK proof generated (circuit files may be missing).</p>
               )}
             </div>
 
-            <div className="glass-panel rounded-2xl p-6 animate-fade-in">
-              <h3 className="text-sm font-semibold text-white mb-4">Document Binding</h3>
-              <div className="space-y-2">
-                <div className="py-2 border-b border-white/5">
-                  <p className="text-xs text-slate-500 mb-1">Document Hash</p>
-                  <p className="text-xs text-sky-400 font-mono break-all">{c.binding?.documentHash}</p>
+            <div className="glass-panel rounded-2xl p-6 animate-fade-in shadow-2xl">
+              <h3 className="text-xs font-mono font-bold text-[#00ff66] uppercase tracking-widest mb-4">DOCUMENT_BINDING</h3>
+              <div className="space-y-3.5">
+                <div className="py-1">
+                  <p className="text-[9px] text-slate-500 font-mono uppercase tracking-widest font-semibold mb-1.5">Document Hash</p>
+                  <p className="text-[10px] text-[#00ff66] font-mono break-all bg-black/40 p-2.5 border border-emerald-950 rounded-lg">{c.binding?.documentHash}</p>
                 </div>
-                <div className="py-2 border-b border-white/5">
-                  <p className="text-xs text-slate-500 mb-1">Attribute Hash</p>
-                  <p className="text-xs text-violet-400 font-mono break-all">{c.binding?.attributeHash}</p>
+                <div className="py-1">
+                  <p className="text-[9px] text-slate-500 font-mono uppercase tracking-widest font-semibold mb-1.5">Attribute Hash</p>
+                  <p className="text-[10px] text-emerald-500 font-mono break-all bg-black/40 p-2.5 border border-emerald-950 rounded-lg">{c.binding?.attributeHash}</p>
                 </div>
-                <div className="py-2">
-                  <p className="text-xs text-slate-500 mb-1">Method</p>
-                  <p className="text-xs text-slate-300">{c.binding?.method}</p>
+                <div className="flex justify-between items-center py-2 px-3 hover:bg-emerald-950/25 rounded-lg transition-colors">
+                  <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest font-semibold">Method</span>
+                  <span className="text-xs font-mono font-bold text-slate-300">{c.binding?.method}</span>
                 </div>
               </div>
             </div>
@@ -172,42 +184,44 @@ export default function CredentialDetail() {
         </div>
 
         {/* Share Links */}
-        <div className="mt-8 glass-panel rounded-2xl p-6 animate-fade-in">
-          <h3 className="text-sm font-semibold text-white mb-4">Share Links</h3>
-          <p className="text-xs text-slate-500 mb-4">Generate a shareable link for organizations to verify this credential without seeing any personal data.</p>
+        <div className="mt-8 glass-panel rounded-2xl p-6 animate-fade-in shadow-2xl">
+          <h3 className="text-xs font-mono font-bold text-[#00ff66] uppercase tracking-widest mb-2">REVOCABLE_SHARE_KEYS</h3>
+          <p className="text-slate-400 text-xs mb-5 font-medium">Generate a temporary verification signature link. Third-parties verify parameters without viewing raw attributes.</p>
 
-          <form onSubmit={handleShare} className="flex gap-3 mb-6">
-            <input type="text" value={orgName} onChange={e => setOrgName(e.target.value)} placeholder="Organization name (optional)"
-              className="flex-1 px-4 py-2.5 rounded-xl bg-slate-900/50 border border-white/5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-sky-500/30 transition-all" />
+          <form onSubmit={handleShare} className="flex flex-col sm:flex-row gap-3 mb-6">
+            <input type="text" value={orgName} onChange={e => setOrgName(e.target.value)} placeholder="Organization / Verifier name"
+              className="input-cyber flex-1 px-4 py-2.5 rounded-xl text-xs placeholder:text-slate-700" />
             <button type="submit" disabled={sharing}
-              className="px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-sky-500 to-indigo-600 rounded-xl hover:from-sky-400 hover:to-indigo-500 transition-all disabled:opacity-50">
-              {sharing ? "..." : "Generate Link"}
+              className="px-5 py-2.5 rounded-xl btn-cyber-primary text-xs font-mono tracking-widest active:scale-[0.98]">
+              {sharing ? "..." : "GENERATE_KEY"}
             </button>
           </form>
 
           {shareLinks.length > 0 ? (
             <div className="space-y-3">
               {shareLinks.map(s => (
-                <div key={s.token} className="flex items-center gap-3 py-3 px-4 rounded-xl bg-slate-900/30 border border-white/5">
+                <div key={s.token} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3.5 px-4 rounded-xl bg-emerald-950/10 border border-emerald-950/60 shadow-lg">
                   <div className="flex-1 min-w-0">
-                    <a href={`${window.location.origin}/verify/${s.token}`} target="_blank" rel="noopener noreferrer" className="text-xs text-sky-400 font-mono truncate underline hover:text-sky-300 block">
+                    <a href={`${window.location.origin}/verify/${s.token}`} target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-400 font-mono truncate underline hover:text-emerald-355 block">
                       {window.location.origin}/verify/{s.token}
                     </a>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
+                    <p className="text-[10px] font-mono text-slate-500 mt-1 uppercase tracking-wider">
                       {s.organizationName || "Public"} · Expires {new Date(s.expiresAt).toLocaleDateString()} · {s.verificationCount} checks
                     </p>
                   </div>
-                  <button onClick={() => copyLink(s.token)} className="px-3 py-1.5 text-[10px] font-medium text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 rounded-lg transition-all">
-                    {copied === s.token ? "Copied!" : "Copy"}
-                  </button>
-                  <button onClick={() => handleRevoke(s.token)} className="px-3 py-1.5 text-[10px] font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg transition-all">
-                    Revoke
-                  </button>
+                  <div className="flex items-center gap-2.5">
+                    <button onClick={() => copyLink(s.token)} className="px-3.5 py-1.5 text-[9px] font-mono font-bold text-emerald-450 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg cursor-pointer transition-all uppercase tracking-wider">
+                      {copied === s.token ? "Copied" : "Copy"}
+                    </button>
+                    <button onClick={() => handleRevoke(s.token)} className="px-3.5 py-1.5 text-[9px] font-mono font-bold text-rose-500 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-lg cursor-pointer transition-all uppercase tracking-wider">
+                      Revoke
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-xs text-slate-600 text-center py-4">No share links yet. Generate one above.</p>
+            <p className="text-[10px] font-mono text-slate-500 text-center py-4 bg-emerald-950/5 border border-emerald-950/20 rounded-xl">No active verification links. Issue one above.</p>
           )}
         </div>
       </section>

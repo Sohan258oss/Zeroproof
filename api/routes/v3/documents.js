@@ -66,6 +66,7 @@ router.post("/upload", upload.single("document"), async (req, res, next) => {
             dateOfBirth: extractedDOB,
             documentType: extracted?.documentType || req.body.documentType || "other",
             status: extracted?.status || "SUCCESS",
+            reason: extracted?.reason || null,
         };
 
         const isVerified = !!(attributes.fullName && attributes.dateOfBirth);
@@ -102,6 +103,7 @@ router.post("/upload", upload.single("document"), async (req, res, next) => {
                     dob: attributes.dateOfBirth || "",
                     documentType: attributes.documentType,
                     status: attributes.status,
+                    reason: attributes.reason,
                 },
                 duplicate: isDuplicate,
                 isVerified: doc.isVerified,

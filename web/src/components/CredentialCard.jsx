@@ -16,19 +16,30 @@ export default function CredentialCard({ credential }) {
   const isExpired = new Date(expiresAt) < new Date();
   const effectiveStatus = isExpired ? "expired" : status;
 
-  const statusConfig = {
-    active: { label: "Active", color: "emerald", dot: true },
-    expired: { label: "Expired", color: "amber", dot: false },
-    revoked: { label: "Revoked", color: "red", dot: false }
+  const statusStyles = {
+    active: {
+      label: "Active",
+      badgeClass: "bg-[#00ff66]/5 text-[#00ff66] border border-[#00ff66]/20",
+      dotClass: "bg-[#00ff66] animate-pulse"
+    },
+    expired: {
+      label: "Expired",
+      badgeClass: "bg-amber-500/5 text-amber-400 border border-amber-500/20",
+      dotClass: null
+    },
+    revoked: {
+      label: "Revoked",
+      badgeClass: "bg-rose-500/5 text-rose-500 border border-rose-500/20",
+      dotClass: null
+    }
   };
 
-  const { label: statusLabel, color: statusColor, dot: showDot } =
-    statusConfig[effectiveStatus] || statusConfig.active;
+  const currentStyle = statusStyles[effectiveStatus] || statusStyles.active;
 
   const typeLabels = {
     age_verification: "Age Verification",
-    identity: "Identity",
-    address: "Address Proof"
+    identity: "Identity Document",
+    address: "Address Verification"
   };
 
   const formatDate = (iso) => {
@@ -39,16 +50,16 @@ export default function CredentialCard({ credential }) {
   return (
     <Link
       to={`/vault/credential/${id}`}
-      className="credential-card glass-panel rounded-2xl p-5 block group hover:bg-slate-800/40 transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/5 hover:border-white/10"
+      className="credential-card glass-panel rounded-2xl p-5 block group transition-all duration-300 hover:scale-[1.01] hover:border-[#00ff66]/25 hover:shadow-[0_0_20px_rgba(0,255,102,0.06)]"
     >
       {/* Header */}
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between mb-5">
         <div className="flex items-center gap-3">
           {/* Credential type icon */}
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
             isEligible
-              ? "bg-gradient-to-br from-emerald-500/20 to-teal-500/20 text-emerald-400"
-              : "bg-gradient-to-br from-red-500/20 to-orange-500/20 text-red-400"
+              ? "bg-emerald-500/10 border-emerald-500/20 text-[#00ff66]"
+              : "bg-rose-500/10 border-rose-500/20 text-rose-500"
           }`}>
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -57,48 +68,48 @@ export default function CredentialCard({ credential }) {
             </svg>
           </div>
           <div>
-            <p className="text-sm font-semibold text-white group-hover:text-sky-100 transition-colors">
+            <p className="text-xs font-mono font-bold text-white group-hover:text-[#00ff66] transition-colors uppercase tracking-wider">
               {typeLabels[credentialType] || credentialType}
             </p>
-            <p className="text-[11px] text-slate-500 font-mono">{id.slice(0, 8)}...</p>
+            <p className="text-[10px] text-emerald-500/60 font-mono mt-0.5">{id.slice(0, 8)}</p>
           </div>
         </div>
 
         {/* Status badge */}
-        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wider uppercase bg-${statusColor}-500/10 text-${statusColor}-400 border border-${statusColor}-500/20`}>
-          {showDot && <span className={`w-1.5 h-1.5 rounded-full bg-${statusColor}-400 animate-pulse`} />}
-          {statusLabel}
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-mono font-bold tracking-wider uppercase ${currentStyle.badgeClass}`}>
+          {currentStyle.dotClass && <span className={`w-1.5 h-1.5 rounded-full ${currentStyle.dotClass}`} />}
+          {currentStyle.label}
         </span>
       </div>
 
       {/* Attributes */}
-      <div className="space-y-2 mb-4">
+      <div className="space-y-2 mb-4 bg-emerald-950/10 p-3 rounded-xl border border-emerald-950/30">
         {attributes?.fullName && (
           <div className="flex items-center justify-between">
-            <span className="text-[11px] text-slate-600 uppercase tracking-wider">Holder</span>
-            <span className="text-xs text-slate-300 font-medium">{attributes.fullName}</span>
+            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest font-semibold">Holder</span>
+            <span className="text-xs text-slate-350 font-medium">{attributes.fullName}</span>
           </div>
         )}
         <div className="flex items-center justify-between">
-          <span className="text-[11px] text-slate-600 uppercase tracking-wider">Eligible</span>
-          <span className={`text-xs font-semibold ${isEligible ? "text-emerald-400" : "text-red-400"}`}>
-            {isEligible ? "Yes ✓" : "No ✗"}
+          <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest font-semibold">Eligible</span>
+          <span className={`text-xs font-mono font-bold ${isEligible ? "text-[#00ff66]" : "text-rose-550"}`}>
+            {isEligible ? "YES ✓" : "NO ✗"}
           </span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-[11px] text-slate-600 uppercase tracking-wider">ZK Proof</span>
-          <span className={`text-xs font-medium ${hasZkProof && zkProofVerified ? "text-sky-400" : "text-slate-500"}`}>
-            {hasZkProof ? (zkProofVerified ? "Verified ✓" : "Invalid") : "Pending"}
+          <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest font-semibold">ZK Proof</span>
+          <span className={`text-xs font-mono font-semibold ${hasZkProof && zkProofVerified ? "text-[#00ff66]" : "text-slate-500"}`}>
+            {hasZkProof ? (zkProofVerified ? "VERIFIED ✓" : "INVALID") : "PENDING"}
           </span>
         </div>
       </div>
 
       {/* Footer */}
-      <div className="pt-3 border-t border-white/5 flex items-center justify-between">
-        <span className="text-[10px] text-slate-600">Issued {formatDate(issuedAt)}</span>
-        <span className="text-[10px] text-sky-500 font-medium group-hover:text-sky-400 transition-colors flex items-center gap-1">
-          View Details
-          <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <div className="pt-3 border-t border-emerald-950/60 flex items-center justify-between">
+        <span className="text-[9px] font-mono text-slate-500 uppercase">ISSUED {formatDate(issuedAt)}</span>
+        <span className="text-[9.5px] font-mono font-bold text-[#00ff66] group-hover:text-emerald-450 tracking-wider uppercase transition-colors flex items-center gap-1.5">
+          VIEW_DETAILS
+          <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <polyline points="9 18 15 12 9 6"/>
           </svg>
         </span>

@@ -56,8 +56,9 @@ async function analyzeDocument(buffer, mimeType = "") {
             return {
                 name: "",
                 dateOfBirth: "",
-                documentType: "unknown",
+                documentType: "other",
                 status: "UNREADABLE",
+                reason: "No readable text found. The document image may be blurry, inverted, or not an identity document.",
                 rawText: text,
             };
         }
@@ -85,14 +86,29 @@ async function analyzeDocument(buffer, mimeType = "") {
         console.log("[Analyzer] FINAL NAME:", name);
         console.log("[Analyzer] FINAL DOB:", dob);
 
+        // Map document type to match frontend select values
+        let mappedType = documentType;
+        if (documentType === "aadhaar") mappedType = "id_card";
+        if (documentType === "marks_card") mappedType = "grade_card";
+        if (documentType === "grade_card") mappedType = "grade_card";
+        if (mappedType !== "id_card" && mappedType !== "passport" && mappedType !== "drivers_license" && mappedType !== "grade_card") {
+            mappedType = "other";
+        }
+
+        const status = (name && dob) ? "SUCCESS" : "NO_DATA_FOUND";
+        const reason = status === "SUCCESS"
+            ? null
+            : "Could not extract Name or Date of Birth. The document image might be blurry, inverted, cropped, or has low-contrast text. Please verify and fill in details manually.";
+
         // -------------------------------
         // 5. RETURN
         // -------------------------------
         return {
             name: name || "",
             dateOfBirth: dob || "",
-            documentType,
-            status: (name || dob) ? "SUCCESS" : "NO_DATA_FOUND",
+            documentType: mappedType,
+            status,
+            reason,
             rawText: text,
         };
     } catch (err) {
@@ -100,8 +116,9 @@ async function analyzeDocument(buffer, mimeType = "") {
         return {
             name: "",
             dateOfBirth: "",
-            documentType: "unknown",
+            documentType: "other",
             status: "ERROR",
+            reason: `Analysis failed: ${err.message}`,
             rawText: "",
         };
     }
@@ -171,6 +188,7 @@ function isNoisyLine(text) {
         "maadhaar", "uidai", "www", "http", "phone", "mobile", "email",
         "student", "card", "valid", "until",
         "board", "university", "college", "school", "department",
+        "institute", "technology", "polytechnic", "academy", "centre", "center",
         "father", "mother", "son", "daughter", "wife", "husband",
         "grade", "semester", "marks", "total", "subject", "result",
         "certificate", "examination", "register", "number", "roll", "class",
@@ -241,16 +259,18 @@ function extractName(text, documentType) {
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
 
-        // Reject if this matches Father's Name, Mother's Name, Husband's Name etc.
-        if (line.match(/(?:Father|Mother|Husband|Wife|Spouse|Parent)'?s?\s*Name/i)) {
-            continue;
-        }
-
         // Match various name label patterns (including "Candidate's Name")
         const labelMatch = line.match(
             /(?:Candidate'?s?\s*|Student\s*)?(?:Name|naam)\s*[:;\-=]?\s*(.*)/i
         );
         if (!labelMatch) continue;
+
+        // Check if the matched label part is preceded by a parent prefix or other invalid prefix in the line
+        const matchIndex = line.toLowerCase().indexOf(labelMatch[0].toLowerCase());
+        const prefix = line.substring(0, matchIndex).trim();
+        if (prefix.match(/(?:Father|Mother|Husband|Wife|Spouse|Parent|Course|Subject|College|School|University|Institution|Department|Branch|Bank|Company|State|City|District|Village|Registrar|Witness|Author)'?s?\s*$/i)) {
+            continue;
+        }
 
         let val = cleanNameLine(labelMatch[1]);
 

@@ -3,7 +3,25 @@ import { useState, useRef, useCallback } from "react";
 export default function FileDropzone({ onFileSelect, disabled = false }) {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [localHash, setLocalHash] = useState("");
+  const [computingHash, setComputingHash] = useState(false);
   const fileInputRef = useRef(null);
+
+  const calculateHash = async (file) => {
+    setComputingHash(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+      setLocalHash(hashHex);
+    } catch (err) {
+      console.error("Local hash computation failed:", err);
+      setLocalHash("ERROR_COMPUTING_HASH");
+    } finally {
+      setComputingHash(false);
+    }
+  };
 
   const handleDrag = useCallback((e) => {
     e.preventDefault();
@@ -33,6 +51,7 @@ export default function FileDropzone({ onFileSelect, disabled = false }) {
       if (files?.length > 0) {
         const file = files[0];
         setSelectedFile(file);
+        calculateHash(file);
         onFileSelect?.(file);
       }
     },
@@ -43,12 +62,14 @@ export default function FileDropzone({ onFileSelect, disabled = false }) {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      calculateHash(file);
       onFileSelect?.(file);
     }
   };
 
   const removeFile = () => {
     setSelectedFile(null);
+    setLocalHash("");
     onFileSelect?.(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -62,7 +83,7 @@ export default function FileDropzone({ onFileSelect, disabled = false }) {
   const getFileIcon = (type) => {
     if (type?.startsWith("image/")) {
       return (
-        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
           <circle cx="8.5" cy="8.5" r="1.5"/>
           <polyline points="21 15 16 10 5 21"/>
@@ -70,53 +91,62 @@ export default function FileDropzone({ onFileSelect, disabled = false }) {
       );
     }
     return (
-      <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
         <polyline points="14 2 14 8 20 8"/>
-        <line x1="16" y1="13" x2="8" y2="13"/>
-        <line x1="16" y1="17" x2="8" y2="17"/>
-        <polyline points="10 9 9 9 8 9"/>
       </svg>
     );
   };
 
   if (selectedFile) {
     return (
-      <div className="dropzone-selected glass-panel rounded-2xl p-6 animate-fade-in">
-        <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+      <div className="bg-[#030e05]/30 border border-emerald-950 rounded-2xl p-5 animate-fade-in relative overflow-hidden shadow-xl">
+        {/* Subtle breathing animation border */}
+        <div className="absolute inset-0 border border-emerald-500/15 rounded-2xl pointer-events-none animate-pulse-border" />
+        
+        <div className="flex items-start gap-4 relative z-10">
+          <div className="flex-shrink-0 w-11 h-11 rounded-xl border border-emerald-500/20 bg-emerald-500/5 flex items-center justify-center text-emerald-450">
             {getFileIcon(selectedFile.type)}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">{selectedFile.name}</p>
-            <div className="flex items-center gap-3 mt-1">
-              <span className="text-xs text-slate-500">{formatSize(selectedFile.size)}</span>
-              <span className="text-xs text-slate-600">·</span>
-              <span className="text-xs text-slate-500 uppercase tracking-wider">
+            <p className="text-xs font-mono font-bold text-white truncate">{selectedFile.name}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] font-mono text-slate-500">{formatSize(selectedFile.size)}</span>
+              <span className="text-emerald-950 font-mono text-[9px]">•</span>
+              <span className="text-[10px] font-mono text-slate-500 uppercase">
                 {selectedFile.type?.split("/")[1] || "file"}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 mt-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs text-emerald-400 font-medium">Ready for upload</span>
+            <div className="flex items-center gap-1.5 mt-2.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00ff66] animate-pulse" />
+              <span className="text-[9px] font-mono text-[#00ff66] font-bold uppercase tracking-wider">STAGE_READY</span>
             </div>
           </div>
           <button
             onClick={removeFile}
-            className="flex-shrink-0 p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+            className="flex-shrink-0 p-1.5 text-slate-500 hover:text-slate-200 bg-emerald-950/30 border border-emerald-950 hover:border-emerald-500/20 rounded-lg transition-all cursor-pointer"
             title="Remove file"
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18"/>
               <line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </button>
         </div>
 
-        {/* File hash preview */}
-        <div className="mt-4 px-3 py-2 rounded-lg bg-slate-900/50 border border-white/5">
-          <p className="text-[10px] text-slate-600 font-mono tracking-wider uppercase mb-1">Document Hash (SHA-256) — computed on upload</p>
-          <p className="text-xs text-slate-400 font-mono">Pending server-side computation...</p>
+        {/* Real-time client-side computed hash preview */}
+        <div className="mt-4 px-3.5 py-3 rounded-xl border border-emerald-950/80 bg-black/60 relative">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[9px] text-slate-500 font-mono tracking-wider uppercase font-semibold">LOCAL_SHA256_HASH</span>
+            {computingHash ? (
+              <span className="text-[9px] text-emerald-450 font-mono animate-pulse">COMPUTING...</span>
+            ) : (
+              <span className="text-[9px] text-emerald-400 font-mono font-bold uppercase border border-emerald-500/15 px-2 py-0.5 rounded bg-emerald-500/5">CLIENT_CALCULATED</span>
+            )}
+          </div>
+          <p className="text-[10px] text-[#00ff66]/90 font-mono break-all leading-normal bg-[#020402] p-2.5 border border-emerald-950 rounded select-all">
+            {localHash || "Awaiting hash calculation..."}
+          </p>
         </div>
       </div>
     );
@@ -130,11 +160,11 @@ export default function FileDropzone({ onFileSelect, disabled = false }) {
       onDrop={handleDrop}
       onClick={() => !disabled && fileInputRef.current?.click()}
       className={`
-        dropzone relative rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer
-        transition-all duration-300 group
+        relative rounded-2xl border border-dashed p-10 text-center cursor-pointer
+        transition-all duration-300 group select-none
         ${isDragging
-          ? "border-sky-400 bg-sky-500/5 shadow-[0_0_40px_rgba(56,189,248,0.08)]"
-          : "border-slate-700/50 hover:border-slate-600 bg-slate-900/30 hover:bg-slate-900/50"
+          ? "border-[#00ff66] bg-[#00ff66]/5 shadow-[0_0_20px_rgba(0,255,102,0.08)]"
+          : "border-emerald-950/80 hover:border-emerald-500/30 bg-emerald-950/10 hover:bg-emerald-950/20"
         }
         ${disabled ? "opacity-50 cursor-not-allowed" : ""}
       `}
@@ -150,38 +180,34 @@ export default function FileDropzone({ onFileSelect, disabled = false }) {
 
       {/* Upload icon */}
       <div className={`
-        mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-all duration-300
+        mx-auto w-12 h-12 rounded-xl border flex items-center justify-center mb-4 transition-all duration-300
         ${isDragging
-          ? "bg-sky-500/15 text-sky-400 scale-110"
-          : "bg-slate-800/50 text-slate-500 group-hover:text-sky-400 group-hover:bg-sky-500/10"
+          ? "border-emerald-500/30 bg-emerald-500/10 text-[#00ff66] scale-105"
+          : "border-emerald-950 bg-emerald-950/30 text-slate-500 group-hover:text-emerald-400 group-hover:border-emerald-500/25"
         }
       `}>
-        <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
           <polyline points="17 8 12 3 7 8"/>
           <line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
       </div>
 
-      <p className="text-sm font-medium text-slate-300 mb-1">
-        {isDragging ? "Drop your document here" : "Drag & drop your document"}
+      <p className="text-xs font-mono font-bold text-slate-400 group-hover:text-white transition-colors mb-1.5 uppercase tracking-wide">
+        {isDragging ? "DROP_FILE_NOW" : "DRAG_AND_DROP_DOCUMENT"}
       </p>
-      <p className="text-xs text-slate-600">
-        or <span className="text-sky-400 hover:text-sky-300 font-medium">browse files</span>
+      <p className="text-[10px] text-slate-600 font-mono uppercase tracking-wider">
+        or click to <span className="text-slate-400 hover:text-white underline">browse_directory</span>
       </p>
-      <p className="text-[10px] text-slate-700 mt-3 font-mono tracking-wider">
+      <p className="text-[9px] text-slate-650 mt-4 font-mono tracking-widest uppercase font-semibold">
         PDF · JPEG · PNG · WebP — Max 10 MB
       </p>
 
       {/* Corner accents */}
-      {isDragging && (
-        <>
-          <div className="absolute top-3 left-3 w-4 h-4 border-t-2 border-l-2 border-sky-400/50 rounded-tl-md" />
-          <div className="absolute top-3 right-3 w-4 h-4 border-t-2 border-r-2 border-sky-400/50 rounded-tr-md" />
-          <div className="absolute bottom-3 left-3 w-4 h-4 border-b-2 border-l-2 border-sky-400/50 rounded-bl-md" />
-          <div className="absolute bottom-3 right-3 w-4 h-4 border-b-2 border-r-2 border-sky-400/50 rounded-br-md" />
-        </>
-      )}
+      <div className="absolute top-2.5 left-2.5 w-2.5 h-2.5 border-t border-l border-emerald-950 group-hover:border-emerald-500/20 transition-colors" />
+      <div className="absolute top-2.5 right-2.5 w-2.5 h-2.5 border-t border-r border-emerald-950 group-hover:border-emerald-500/20 transition-colors" />
+      <div className="absolute bottom-2.5 left-2.5 w-2.5 h-2.5 border-b border-l border-emerald-950 group-hover:border-emerald-500/20 transition-colors" />
+      <div className="absolute bottom-2.5 right-2.5 w-2.5 h-2.5 border-b border-r border-emerald-950 group-hover:border-emerald-500/20 transition-colors" />
     </div>
   );
 }

@@ -1,115 +1,159 @@
-const TIMELINE_STEPS = [
-  { key: "loading_wasm", label: "Loading Circuit", desc: "Fetching WASM binary" },
-  { key: "computing_witness", label: "Computing Witness", desc: "Building constraint system" },
-  { key: "generating_proof", label: "Generating Proof", desc: "PLONK proving algorithm" },
-  { key: "sending", label: "Verifying on Server", desc: "Cryptographic verification" },
-  { key: "complete", label: "Verification Result", desc: "Proof validated" },
-];
+import { useEffect, useState, useRef } from "react";
 
-function getStepState(stepIndex, currentStageIndex) {
-  if (currentStageIndex < 0) return "error";
-  if (stepIndex < currentStageIndex) return "done";
-  if (stepIndex === currentStageIndex) return "active";
-  return "pending";
-}
+const TIMELINE_STEPS = [
+  { key: "loading_wasm", label: "Initialize Circuit", desc: "Fetching WASM binary & parameters" },
+  { key: "computing_witness", label: "Witness Generation", desc: "Mapping constraint system parameters" },
+  { key: "generating_proof", label: "Cryptographic Prove", desc: "Running PLONK proving algorithm" },
+  { key: "sending", label: "Node Verification", desc: "Validating proof on AegisID node" },
+  { key: "complete", label: "Finalized State", desc: "Verification verified & bound" },
+];
 
 export default function ProofTimeline({ stage, progress, STAGES }) {
   const currentIndex = STAGES[stage]?.index ?? 0;
   const isIdle = stage === "idle";
+  const [logs, setLogs] = useState([]);
+  const consoleEndRef = useRef(null);
+
+  // Generate realistic logs based on current stage transitions
+  useEffect(() => {
+    if (stage === "idle") {
+      setLogs(["[system] Awaiting parameters...", "[system] Ready for proof generation."]);
+    } else if (stage === "loading_wasm") {
+      setLogs((l) => [
+        ...l,
+        "[system] Prover thread spawned in dedicated web worker.",
+        `[snarkjs] Fetching circuit keys from repository...`,
+        `[snarkjs] Loaded WASM constraints system binary.`,
+      ]);
+    } else if (stage === "computing_witness") {
+      setLogs((l) => [
+        ...l,
+        "[witness] Computing witness vectors (Poseidon hashes)...",
+        "[witness] Mapping input variables to R1CS matrices...",
+        "[witness] Witness computed successfully.",
+      ]);
+    } else if (stage === "generating_proof") {
+      setLogs((l) => [
+        ...l,
+        "[plonk] Executing full prove over constraint equations...",
+        "[plonk] Constructing commitment polynomial quotients...",
+        "[plonk] Computing G1/G2 group point evaluations...",
+        "[plonk] PLONK proof generated successfully.",
+      ]);
+    } else if (stage === "sending") {
+      setLogs((l) => [
+        ...l,
+        "[api] Serializing PLONK proof components (A, B, C)...",
+        `[api] Transmitting proof hash to verifier node...`,
+      ]);
+    } else if (stage === "complete") {
+      setLogs((l) => [
+        ...l,
+        "[verifier] Node response: 200 OK.",
+        "[verifier] Proof verified successfully on curve BN254.",
+        "[system] Cryptographic handshake finalized.",
+      ]);
+    } else if (stage === "error") {
+      setLogs((l) => [
+        ...l,
+        "[error] Handshake aborted. Witness constraints violated.",
+      ]);
+    }
+  }, [stage]);
+
+  // Scroll terminal logs to bottom
+  useEffect(() => {
+    if (consoleEndRef.current) {
+      consoleEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [logs]);
 
   return (
-    <div className="glass-panel rounded-2xl p-6 relative overflow-hidden">
-      <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10"></div>
-
-      <div className="relative z-10">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold text-white tracking-tight">Proof Pipeline</h2>
-          {!isIdle && (
-            <span className="text-xs font-mono text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full">
-              {progress}%
-            </span>
-          )}
+    <div className="bg-[#030804]/90 border border-emerald-950/80 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-md">
+      {/* Terminal Title Bar */}
+      <div className="bg-[#050f07] px-4 py-3 border-b border-emerald-950/60 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80"></span>
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80"></span>
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></span>
+          <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest ml-2">ZK_PROVER_SHELL</span>
         </div>
-
-        {/* Progress bar */}
         {!isIdle && (
-          <div className="w-full h-1 bg-slate-800 rounded-full mb-6 overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-sky-500 to-indigo-500 rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${progress}%` }}
-            ></div>
-          </div>
+          <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+            PROVING: {progress}%
+          </span>
         )}
+      </div>
 
-        {/* Steps */}
-        <div className="space-y-1">
+      <div className="p-5 space-y-6">
+        {/* Progress Timeline */}
+        <div className="space-y-4">
           {TIMELINE_STEPS.map((step, i) => {
-            const state = isIdle ? "pending" : getStepState(i + 1, currentIndex);
+            const stepIndex = i + 1;
+            const isDone = currentIndex > stepIndex || stage === "complete";
+            const isActive = currentIndex === stepIndex;
+            const isPending = currentIndex < stepIndex && stage !== "complete";
+
+            let iconColor = "bg-emerald-950/20 border-emerald-950/80 text-slate-650";
+            let textColor = "text-slate-500";
+            
+            if (isDone) {
+              iconColor = "bg-emerald-500/10 border-emerald-500/30 text-emerald-400";
+              textColor = "text-slate-350";
+            } else if (isActive) {
+              iconColor = "bg-emerald-500/15 border-emerald-500/40 text-emerald-400 ring-2 ring-emerald-500/10 shadow-[0_0_10px_rgba(0,255,102,0.15)]";
+              textColor = "text-white";
+            }
 
             return (
-              <div key={step.key} className="flex items-start gap-3 py-2">
-                {/* Step indicator */}
-                <div className="flex flex-col items-center mt-0.5">
-                  <div
-                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-                      state === "done"
-                        ? "bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30"
-                        : state === "active"
-                        ? "bg-sky-500/20 text-sky-400 ring-2 ring-sky-500/50 animate-pulse"
-                        : state === "error"
-                        ? "bg-red-500/20 text-red-400 ring-1 ring-red-500/30"
-                        : "bg-slate-800 text-slate-600 ring-1 ring-slate-700"
-                    }`}
-                  >
-                    {state === "done" ? (
-                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : state === "active" ? (
-                      <div className="w-2 h-2 rounded-full bg-sky-400"></div>
-                    ) : state === "error" ? (
-                      "!"
-                    ) : (
-                      <span className="text-[10px]">{i + 1}</span>
-                    )}
-                  </div>
-                  {i < TIMELINE_STEPS.length - 1 && (
-                    <div className={`w-px h-4 mt-1 transition-colors duration-300 ${
-                      state === "done" ? "bg-emerald-500/30" : "bg-slate-800"
-                    }`}></div>
+              <div key={step.key} className="flex gap-4 relative group">
+                {/* Connecting Line */}
+                {i < TIMELINE_STEPS.length - 1 && (
+                  <div className={`absolute left-[13px] top-6 w-[2px] h-[calc(100%-12px)] transition-colors duration-300 ${
+                    isDone ? "bg-emerald-500/30" : "bg-emerald-950/40"
+                  }`}></div>
+                )}
+
+                {/* Circle Indicator */}
+                <div className={`w-7 h-7 rounded-lg border flex items-center justify-center text-xs font-mono font-bold transition-all duration-300 ${iconColor}`}>
+                  {isDone ? (
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <span>{stepIndex}</span>
                   )}
                 </div>
 
-                {/* Step content */}
+                {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <div className={`text-sm font-medium transition-colors duration-300 ${
-                    state === "done"
-                      ? "text-emerald-400"
-                      : state === "active"
-                      ? "text-sky-400"
-                      : state === "error"
-                      ? "text-red-400"
-                      : "text-slate-600"
-                  }`}>
-                    {step.label}
-                  </div>
-                  <div className="text-[11px] text-slate-600 mt-0.5">{step.desc}</div>
+                  <h3 className={`text-xs font-mono font-bold uppercase tracking-wider ${textColor}`}>{step.label}</h3>
+                  <p className="text-[10px] text-slate-500 mt-0.5 font-medium">{step.desc}</p>
                 </div>
-
-                {/* Duration placeholder */}
-                {state === "done" && (
-                  <span className="text-[10px] text-slate-600 font-mono mt-0.5">✓</span>
-                )}
               </div>
             );
           })}
         </div>
 
-        {isIdle && (
-          <div className="mt-4 text-center text-xs text-slate-600 italic">
-            Enter your birth year and click generate to begin
-          </div>
-        )}
+        {/* Live Logs Terminal Console */}
+        <div className="border border-emerald-950/85 bg-black/80 rounded-xl p-3.5 font-mono text-[10px] text-slate-400 space-y-1.5 h-36 overflow-y-auto custom-scrollbar select-all">
+          {logs.map((log, i) => {
+            let logColor = "text-slate-450";
+            if (log.startsWith("[system]")) logColor = "text-slate-600";
+            else if (log.startsWith("[snarkjs]")) logColor = "text-[#00f0aa]";
+            else if (log.startsWith("[witness]")) logColor = "text-emerald-500";
+            else if (log.startsWith("[plonk]")) logColor = "text-amber-500";
+            else if (log.startsWith("[verifier]") || log.includes("success")) logColor = "text-[#00ff66]";
+            else if (log.startsWith("[error]")) logColor = "text-rose-500";
+
+            return (
+              <div key={i} className={`${logColor} leading-relaxed`}>
+                {log}
+              </div>
+            );
+          })}
+          <div ref={consoleEndRef} />
+        </div>
       </div>
     </div>
   );

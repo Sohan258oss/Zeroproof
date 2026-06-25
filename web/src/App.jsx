@@ -28,149 +28,159 @@ function ZKDemo() {
       await generateAndVerify(params);
       setProofCount((c) => c + 1);
     } catch {
-      // Error is already handled by useProver
+      // Error is handled by useProver
     }
   };
 
   return (
-    <>
-      {/* Background effects */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-sky-500 rounded-full mix-blend-multiply filter blur-[150px] opacity-[0.03] animate-float"></div>
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-indigo-600 rounded-full mix-blend-multiply filter blur-[150px] opacity-[0.04] animate-float-delayed"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-violet-600 rounded-full mix-blend-multiply filter blur-[200px] opacity-[0.02]"></div>
+    <div className="relative">
+      {/* Sleek cryptographic mesh grid background */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden bg-[linear-gradient(to_right,#00ff6606_1px,transparent_1px),linear-gradient(to_bottom,#00ff6606_1px,transparent_1px)] bg-[size:32px_32px]">
+        <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-emerald-600 rounded-full mix-blend-screen filter blur-[180px] opacity-[0.05] animate-float" />
+        <div className="absolute bottom-10 left-1/4 w-[700px] h-[700px] bg-emerald-500 rounded-full mix-blend-screen filter blur-[200px] opacity-[0.03]" />
+        <div className="absolute top-1/3 left-1/3 w-[500px] h-[500px] bg-teal-600 rounded-full mix-blend-screen filter blur-[170px] opacity-[0.02]" />
       </div>
 
       {/* Hero Section */}
-      <section className="relative pt-28 pb-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-medium mb-6 animate-fade-in">
-            <div className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></div>
-            Zero-Knowledge Identity Protocol
+      <section className="relative pt-28 pb-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-b border-emerald-950/60">
+        <div className="text-center sm:text-left flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 pb-6">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-emerald-950/20 border border-emerald-500/15 text-emerald-400 text-[10px] font-mono uppercase tracking-wider mb-3">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Decentralized Identity Node
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white font-mono">
+              AegisID <span className="text-emerald-400 font-sans">Prover</span>
+            </h1>
+            <p className="text-slate-400 text-xs mt-1.5 max-w-xl leading-relaxed">
+              Verify identity criteria locally using PLONK ZK-SNARKs. Zero private data is sent to the verifier node; equations are evaluated client-side via browser WebAssembly.
+            </p>
           </div>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] mb-4 animate-fade-in-up">
-            Prove who you are.
-            <br />
-            <span className="gradient-text">Reveal nothing.</span>
-          </h1>
-          <p className="text-slate-400 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed animate-fade-in-up-delayed">
-            AegisID uses zero-knowledge proofs to verify your identity attributes
-            without exposing personal data. The cryptography runs entirely in your browser.
-          </p>
+          <div className="flex items-center gap-3.5 self-start sm:self-center">
+            <span className="text-[10px] font-mono text-slate-500 tracking-wider">ENGINE STATE:</span>
+            <span className="text-[10px] font-mono bg-emerald-950/20 border border-emerald-500/30 px-3 py-1 rounded text-emerald-400 uppercase tracking-widest shadow-[0_0_10px_rgba(0,255,102,0.08)]">
+              {stageInfo.label}
+            </span>
+          </div>
         </div>
       </section>
 
-      {/* Main Dashboard */}
-      <section className="relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-12">
-        {/* Stats */}
-        <div className="mb-6 animate-fade-in">
+      {/* Main Dashboard Grid */}
+      <section className="relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto py-8">
+        {/* Top Stats Banner */}
+        <div className="mb-8">
           <StatsPanel proofTime={proofTime} proofCount={proofCount} stage={stage} />
         </div>
 
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <div className="animate-fade-in">
-            <ProofGenerator onGenerate={handleGenerate} isProving={isProving} />
-          </div>
-          <div className="space-y-6 animate-fade-in">
-            <ProofTimeline stage={stage} progress={progress} STAGES={STAGES} />
+        {/* Proving Panel Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Proving Controller */}
+          <div className="lg:col-span-7 space-y-6">
+            <div className="bg-black border border-emerald-950/85 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
+              <ProofGenerator onGenerate={handleGenerate} isProving={isProving} />
+            </div>
+
+            {/* Verification status output */}
             <VerificationBadge result={result} error={error} proofTime={proofTime} stage={stage} />
+          </div>
+
+          {/* Cryptographic Pipeline Console */}
+          <div className="lg:col-span-5 space-y-6">
+            <ProofTimeline stage={stage} progress={progress} STAGES={STAGES} />
           </div>
         </div>
 
-        {/* Proof Explorer Toggle */}
+        {/* Monospace Proof Explorer */}
         {(rawProof || result) && (
-          <div className="animate-fade-in">
-            <button
-              id="toggle-explorer-btn"
-              onClick={() => setShowExplorer(!showExplorer)}
-              className="text-xs text-slate-500 hover:text-sky-400 font-medium tracking-wide flex items-center gap-1.5 transition-colors mb-4 group"
-            >
-              <svg className={`w-3 h-3 transition-transform ${showExplorer ? "rotate-90" : ""}`} viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-              <span className="group-hover:underline underline-offset-2">
-                {showExplorer ? "Hide" : "Show"} Cryptographic Details
-              </span>
-            </button>
-            {showExplorer && <ProofExplorer rawProof={rawProof} result={result} />}
+          <div className="mt-8 pt-8 border-t border-emerald-950/60">
+            <div className="flex items-center justify-between mb-4">
+              <button
+                id="toggle-explorer-btn"
+                onClick={() => setShowExplorer(!showExplorer)}
+                className="text-[10px] font-mono text-emerald-400/80 hover:text-emerald-355 uppercase tracking-widest flex items-center gap-2 transition-all group bg-emerald-950/25 border border-emerald-950/60 hover:border-emerald-500/20 px-3 py-1.5 rounded-lg cursor-pointer"
+              >
+                <svg className={`w-3 h-3 transition-transform duration-200 ${showExplorer ? "rotate-90 text-emerald-400" : "text-emerald-500"}`} viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+                {showExplorer ? "Collapse" : "Expand"} Cryptographic Proof Payload
+              </button>
+            </div>
+            {showExplorer && (
+              <div className="animate-fade-in-up">
+                <ProofExplorer rawProof={rawProof} result={result} />
+              </div>
+            )}
           </div>
         )}
 
-        {/* Reset Button */}
-        {stage === "complete" || stage === "error" ? (
-          <div className="mt-6 text-center animate-fade-in">
+        {/* Reset Action */}
+        {(stage === "complete" || stage === "error") && (
+          <div className="mt-8 text-center animate-fade-in">
             <button
               id="reset-btn"
               onClick={reset}
-              className="px-6 py-2 text-xs font-medium text-slate-400 hover:text-white border border-slate-700/50 hover:border-slate-600 rounded-xl transition-all hover:bg-white/5"
+              className="btn-cyber-secondary px-6 py-2.5 rounded-xl text-xs"
             >
-              New Verification
+              RESET_PROVER_ENGINE
             </button>
           </div>
-        ) : null}
+        )}
       </section>
 
-      {/* Architecture Section */}
-      <section id="arch" className="relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto py-16 border-t border-white/5">
-        <h2 className="text-2xl font-bold text-white mb-8 tracking-tight">
-          How It <span className="gradient-text">Works</span>
-        </h2>
+      {/* Tech Specifications */}
+      <section id="arch" className="relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto py-12 border-t border-emerald-950/60 mt-8">
+        <h2 className="text-xs font-mono font-bold text-slate-500 uppercase tracking-widest mb-6">CRYPTOGRAPHIC ARCHITECTURE</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
             {
               step: "01",
-              title: "Client-Side Proving",
-              desc: "Your birth year stays in the browser. A PLONK proof is generated using WebAssembly — no data is sent to any server.",
-              color: "from-sky-500 to-cyan-500"
+              title: "Client-Side WASM Proofs",
+              desc: "Proving calculations are computed within a background web worker context. Circuit configurations (wasm/zkey) run completely sandboxed inside the client's browser memory context."
             },
             {
               step: "02",
-              title: "Server-Side Verification",
-              desc: "Only the mathematical proof reaches our API. The verifier checks cryptographic validity in <50ms without knowing your age.",
-              color: "from-indigo-500 to-violet-500"
+              title: "Zero-Knowledge Verify",
+              desc: "AegisID verifier checks the mathematical proof polynomials under 50ms. The verifier confirms correctness without learning the underlying year value."
             },
             {
               step: "03",
-              title: "Nullifier Protection",
-              desc: "A Poseidon hash prevents replay attacks. Each proof context generates a unique nullifier — no double-spending identity.",
-              color: "from-violet-500 to-purple-500"
+              title: "Poseidon Hash Replay Protection",
+              desc: "Nullifiers are deterministically derived from inputs using Poseidon constraints. Replaying verification logs is prevented by matching used nullifier states dynamically."
             }
           ].map((item) => (
-            <div key={item.step} className="glass-panel rounded-2xl p-6 group hover:bg-slate-800/40 transition-all">
-              <div className={`text-3xl font-black bg-gradient-to-r ${item.color} bg-clip-text text-transparent mb-3 opacity-40 group-hover:opacity-70 transition-opacity`}>
-                {item.step}
-              </div>
-              <h3 className="text-base font-semibold text-white mb-2">{item.title}</h3>
-              <p className="text-sm text-slate-500 leading-relaxed">{item.desc}</p>
+            <div key={item.step} className="glass-panel p-6 rounded-2xl hover:border-emerald-500/20 transition-all duration-300 group shadow-lg">
+              <div className="text-[10px] font-mono text-emerald-400 mb-2 font-bold">{item.step} / SECURE_NODE</div>
+              <h3 className="text-xs font-mono font-bold text-slate-200 group-hover:text-white uppercase tracking-wider mb-2">{item.title}</h3>
+              <p className="text-slate-400 text-[11px] leading-relaxed">{item.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-white/5 py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-sm text-slate-600">
-            <span className="gradient-text font-bold">AegisID</span>
+      <footer className="border-t border-emerald-950/60 py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[10px] text-slate-500">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-slate-400">AegisID Node</span>
             <span>·</span>
-            <span>Zero-Knowledge Identity Protocol</span>
+            <span>Zero-Knowledge Identity verification system</span>
           </div>
-          <div className="flex items-center gap-4 text-xs text-slate-600">
-            <span>PLONK · BN128 · Poseidon</span>
-            <a href="https://github.com/Sohan258oss/Zeroproof" className="hover:text-sky-400 transition-colors" target="_blank" rel="noopener noreferrer">
-              GitHub ↗
+          <div className="flex items-center gap-4">
+            <span>PLONK · BN254 · POSEIDON</span>
+            <a href="https://github.com/Sohan258oss/Zeroproof" className="hover:text-emerald-400 transition-colors" target="_blank" rel="noopener noreferrer">
+              REPOSITORY ↗
             </a>
           </div>
         </div>
       </footer>
-    </>
+    </div>
   );
 }
 
 function App() {
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen bg-[#020204] text-[#e2fce8] selection:bg-emerald-950/50 selection:text-emerald-300">
       <Navbar />
       <Routes>
         <Route path="/" element={<ZKDemo />} />

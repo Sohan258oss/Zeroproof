@@ -58,7 +58,8 @@ async function storeDocument(fileBuffer, { originalName, mimeType, attributes, i
             dateOfBirth: attributes.dateOfBirth || "",
             documentType: attributes.documentType || "other",
             status: attributes.status || "SUCCESS",
-            confidence: attributes.confidence || { name: 0, dob: 0 }
+            confidence: attributes.confidence || { name: 0, dob: 0 },
+            reason: attributes.reason || null
         },
         isVerified,
         encryptionAlgorithm: "AES-256-GCM",

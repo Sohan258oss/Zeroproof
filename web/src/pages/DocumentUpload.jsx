@@ -20,6 +20,8 @@ export default function DocumentUpload() {
   const [result, setResult] = useState(null);
   const [shareLink, setShareLink] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [extractionStatus, setExtractionStatus] = useState(null);
+  const [extractionReason, setExtractionReason] = useState(null);
 
   // Auto-scan document
   async function handleScan(e) {
@@ -41,9 +43,11 @@ export default function DocumentUpload() {
 
       const doc = data.data.document;
       setExtractedDocId(doc.id);
-      setName(doc.attributes.name || "");
+      setName(doc.attributes.name && doc.attributes.name !== "UNKNOWN" ? doc.attributes.name : "");
       setDateOfBirth(doc.attributes.dob || "");
       setDocumentType(doc.attributes.documentType || "id_card");
+      setExtractionStatus(doc.attributes.status || "SUCCESS");
+      setExtractionReason(doc.attributes.reason || null);
       
       setStage("confirming");
     } catch (err) {
@@ -66,17 +70,13 @@ export default function DocumentUpload() {
     setStage("issuing");
 
     try {
-      // 1. Update document attributes if they were edited
-      // (For this prototype, we'll just pass them to the issue endpoint or assume they are bound)
-      // In a real system, we'd update the document record first.
-      
-      // 2. Issue Credential
+      // 1. Issue Credential
       const issueRes = await fetch(`${API}/v3/credentials/issue`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
             documentId: extractedDocId,
-            overrides: { fullName: name, dateOfBirth, documentType } // In case user edited
+            overrides: { fullName: name, dateOfBirth, documentType }
         })
       });
       const issueData = await issueRes.json();
@@ -84,7 +84,7 @@ export default function DocumentUpload() {
 
       const cred = issueData.data.credential;
 
-      // 3. Auto-generate Share Link
+      // 2. Auto-generate Share Link
       const shareRes = await fetch(`${API}/v3/credentials/${cred.id}/share`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -118,46 +118,54 @@ export default function DocumentUpload() {
   // Success View
   if (stage === "done" && result) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-4">
-        <div className="max-w-xl w-full glass-panel rounded-3xl p-8 text-center animate-fade-in relative overflow-hidden">
-          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
-          <div className="w-20 h-20 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-6 animate-badge-pop shadow-lg shadow-emerald-500/10">
-            <svg className="w-10 h-10 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <div className="min-h-screen bg-[#020204] text-[#e2fce8] flex items-center justify-center px-4 relative">
+        <div className="fixed inset-0 pointer-events-none overflow-hidden bg-[linear-gradient(to_right,#00ff6606_1px,transparent_1px),linear-gradient(to_bottom,#00ff6606_1px,transparent_1px)] bg-[size:32px_32px]">
+          <div className="absolute top-1/4 right-1/4 w-[500px] h-[500px] bg-emerald-655 rounded-full mix-blend-screen filter blur-[180px] opacity-[0.04]" />
+        </div>
+
+        <div className="max-w-md w-full glass-panel rounded-2xl p-6 text-center animate-fade-in relative overflow-hidden shadow-2xl border-emerald-500/20">
+          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-600 via-emerald-400 to-[#00ff66]" />
+          <div className="w-12 h-12 mx-auto rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex items-center justify-center mb-4 text-[#00ff66]">
+            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" />
+            </svg>
           </div>
-          <h2 className="text-2xl font-extrabold text-white mb-2">Zero-Proof Ready!</h2>
-          <p className="text-sm text-slate-400 mb-8 max-w-sm mx-auto">Your identity is cryptographically secured. You can now share this verification link.</p>
+          <h2 className="text-xs font-mono font-bold text-white uppercase tracking-widest mb-1">ZK_CREDENTIAL_ISSUED</h2>
+          <p className="text-slate-500 text-[10px] font-medium mb-6">Identity parameters cryptographically signed and stored in client vault.</p>
           
-          <div className="grid grid-cols-2 gap-4 mb-8">
-            <div className="bg-white/5 rounded-2xl p-4 border border-white/5 text-left">
-              <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Subject</p>
-              <p className="text-sm font-bold text-white truncate">{result.document.attributes.name}</p>
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="bg-[#020502] border border-emerald-950/80 rounded-xl p-3.5 text-left">
+              <p className="text-[9px] text-slate-500 font-mono uppercase tracking-wider mb-1">CREDENTIAL_HOLDER</p>
+              <p className="text-[11px] font-mono font-bold text-slate-100 truncate">{result.document.attributes.name}</p>
             </div>
-            <div className="bg-white/5 rounded-2xl p-4 border border-white/5 text-left">
-              <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Status</p>
-              <p className="text-sm font-bold text-emerald-400 flex items-center gap-1.5">Verified</p>
+            <div className="bg-[#020502] border border-emerald-950/80 rounded-xl p-3.5 text-left">
+              <p className="text-[9px] text-slate-500 font-mono uppercase tracking-wider mb-1">STATUS</p>
+              <p className="text-[11px] font-mono font-bold text-emerald-400 uppercase tracking-widest">ACTIVE</p>
             </div>
           </div>
 
           {shareLink && (
-            <div className="bg-slate-900/50 rounded-2xl p-5 border border-sky-500/20 mb-8 text-left animate-fade-in-up">
-              <label className="text-[10px] text-sky-400 font-bold uppercase tracking-widest block mb-3">Shareable Verification Link</label>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 bg-slate-950/50 px-4 py-2.5 rounded-xl border border-white/5 text-xs font-mono text-slate-400 truncate">
+            <div className="bg-[#020502] border border-emerald-950/80 rounded-xl p-4 mb-6 text-left">
+              <label className="text-[9px] text-slate-500 font-mono font-bold uppercase tracking-wider block mb-2">VERIFICATION_LINK</label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-[#030804] px-3 py-2.5 rounded-lg border border-emerald-950 text-[10px] font-mono text-[#e2fce8] truncate">
                   {window.location.origin}{shareLink.verifyUrl}
                 </div>
-                <button onClick={copyLink} className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${copied ? "bg-emerald-500 text-white" : "bg-sky-500/10 text-sky-400 hover:bg-sky-500/20"}`}>
-                  {copied ? "Copied!" : "Copy"}
+                <button onClick={copyLink} className={`px-4 py-2.5 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                  copied ? "bg-emerald-600 text-white font-extrabold" : "btn-cyber-secondary"
+                }`}>
+                  {copied ? "COPIED" : "COPY_LINK"}
                 </button>
               </div>
             </div>
           )}
 
-          <div className="flex gap-4">
-            <button onClick={() => navigate(`/vault/credential/${result.credential.id}`)} className="flex-1 px-6 py-3 text-sm font-bold text-white bg-gradient-to-r from-sky-500 to-indigo-600 rounded-2xl hover:from-sky-400 hover:to-indigo-500 shadow-lg shadow-indigo-500/20">
-              Manage
+          <div className="flex gap-3">
+            <button onClick={() => navigate(`/vault/credential/${result.credential.id}`)} className="flex-1 py-2.5 rounded-xl btn-cyber-primary text-xs font-mono tracking-widest">
+              MANAGE_CREDENTIAL
             </button>
-            <button onClick={() => navigate("/vault")} className="px-6 py-3 text-sm font-bold text-slate-400 bg-white/5 border border-white/10 rounded-2xl">
-              Dashboard
+            <button onClick={() => navigate("/vault")} className="px-5 py-2.5 rounded-xl btn-cyber-secondary text-xs font-mono tracking-widest">
+              DASHBOARD
             </button>
           </div>
         </div>
@@ -166,89 +174,105 @@ export default function DocumentUpload() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-sky-500 rounded-full mix-blend-multiply filter blur-[150px] opacity-[0.03] animate-float" />
+    <div className="min-h-screen bg-[#020204] text-[#e2fce8] relative">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden bg-[linear-gradient(to_right,#00ff6606_1px,transparent_1px),linear-gradient(to_bottom,#00ff6606_1px,transparent_1px)] bg-[size:32px_32px]">
+        <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-[#00ff66] rounded-full mix-blend-screen filter blur-[180px] opacity-[0.05] animate-float" />
+        <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-emerald-600 rounded-full mix-blend-screen filter blur-[180px] opacity-[0.03]" />
       </div>
 
-      <section className="relative pt-28 pb-16 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto">
-        <button onClick={() => navigate("/vault")} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-white transition-colors mb-6">
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
-          Back to Vault
+      <section className="relative pt-28 pb-16 px-4 sm:px-6 lg:px-8 max-w-xl mx-auto">
+        <button onClick={() => navigate("/vault")} className="inline-flex items-center gap-1.5 text-[10px] font-mono text-emerald-300 hover:text-emerald-400 bg-emerald-950/20 border border-emerald-950 hover:border-emerald-500/20 px-3 py-1.5 rounded-lg mb-6 transition-all cursor-pointer">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          RETURN_TO_VAULT
         </button>
 
-        <div className="mb-10 animate-fade-in-up text-center sm:text-left">
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-            Identity <span className="gradient-text">Vault</span>
+        <div className="mb-8 text-center sm:text-left">
+          <h1 className="text-xl font-extrabold tracking-widest font-mono uppercase text-white">
+            SECURE_UPLOAD_VAULT
           </h1>
-          <p className="text-slate-500 text-sm mt-3 leading-relaxed">
-            Upload your ID. Our AI will read it automatically and issue a private ZK credential.
+          <p className="text-slate-400 text-xs mt-1.5 leading-relaxed font-medium">
+            Upload identity document parameters to extract verification credentials. Scanning computations run locally.
           </p>
         </div>
 
         {/* --- STAGE: ERROR --- */}
         {stage === "error" && (
-          <div className="glass-panel rounded-2xl p-8 text-center mb-10 animate-shake">
-            <div className="w-12 h-12 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div className="glass-panel border-rose-500/30 bg-rose-500/5 rounded-2xl p-5 text-center mb-6 animate-fade-in shadow-2xl">
+            <div className="w-10 h-10 bg-rose-500/10 text-rose-455 rounded-xl border border-rose-500/20 flex items-center justify-center mx-auto mb-3">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path strokeLinecap="round" d="M15 9l-6 6M9 9l6 6"/></svg>
             </div>
-            <p className="text-sm font-bold text-white mb-2">Process Interrupted</p>
-            <p className="text-xs text-slate-400 mb-6">{error}</p>
-            <button onClick={() => { setStage("idle"); setError(null); }} className="px-6 py-2.5 text-xs font-bold text-white bg-slate-800 rounded-xl border border-white/5 hover:bg-slate-700 transition-all">
-              Try Again
+            <p className="text-xs font-mono font-bold text-white uppercase tracking-widest mb-1">TRANSACTION_ABORTED</p>
+            <p className="text-[10px] text-slate-400 font-mono mb-4">{error}</p>
+            <button onClick={() => { setStage("idle"); setError(null); }} className="px-4 py-2 rounded-lg text-[10px] font-mono font-bold btn-cyber-secondary cursor-pointer">
+              RESET_STAGE
             </button>
           </div>
         )}
 
         {/* --- STAGE: PROCESSING --- */}
         {uploading && (
-          <div className="glass-panel rounded-2xl p-12 text-center mb-10 animate-fade-in">
-            <div className="w-12 h-12 border-2 border-sky-500/30 border-t-sky-400 rounded-full animate-spin mx-auto mb-6" />
-            <p className="text-sm text-white font-medium">
-              {stage === "analyzing" ? "Reading Document..." : "Securing Credential..."}
+          <div className="glass-panel border-emerald-500/15 bg-emerald-950/10 rounded-2xl p-10 text-center mb-6 animate-fade-in shadow-2xl">
+            <div className="w-8 h-8 border border-emerald-500/20 border-t-emerald-455 rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-xs font-mono font-bold text-[#00ff66] uppercase tracking-widest">
+              {stage === "analyzing" ? "READING_DOCUMENT_OCR" : "PROVING_IDENTITY_STATE"}
             </p>
-            <p className="text-[10px] text-slate-500 mt-2 uppercase tracking-widest font-bold">Privacy Guaranteed</p>
+            <p className="text-[9px] text-slate-500 mt-2.5 font-mono tracking-widest uppercase font-semibold">LOCAL_SANDBOX_ISOLATED</p>
           </div>
         )}
 
         {/* --- STAGE: IDLE (Upload) --- */}
         {!uploading && stage === "idle" && (
-          <div className="space-y-8 animate-fade-in">
-            <div className="glass-panel rounded-3xl p-2">
+          <div className="space-y-4 animate-fade-in-up">
+            <div className="bg-emerald-950/10 border border-emerald-950/80 rounded-2xl p-2">
               <FileDropzone onFileSelect={setFile} disabled={uploading} />
             </div>
             <button onClick={handleScan} disabled={!file || uploading}
-              className="w-full py-4 text-sm font-extrabold text-white bg-gradient-to-r from-sky-500 to-indigo-600 rounded-2xl hover:from-sky-400 hover:to-indigo-500 shadow-xl shadow-indigo-500/20 disabled:opacity-40 active:scale-[0.98] transition-all">
-              Scan & Verify Automatically
+              className="w-full py-3 rounded-xl btn-cyber-primary text-xs font-mono tracking-widest active:scale-[0.98]">
+              SCAN_AND_EXTRACT_PARAMETERS
             </button>
           </div>
         )}
 
         {/* --- STAGE: CONFIRMING --- */}
         {!uploading && stage === "confirming" && extractedDocId && (
-          <div className="glass-panel rounded-3xl p-8 animate-fade-in">
-            <h2 className="text-xl font-bold text-white mb-2">Extracted Details</h2>
+          <div className="glass-panel border-emerald-500/15 rounded-2xl p-6 animate-fade-in-up shadow-2xl">
+            <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-[#00ff66] mb-5">EXTRACTED_CLAIMS_VERIFICATION</h2>
             
-            <div className="space-y-6 mb-8">
-              <div className="space-y-1.5">
-                <label className="text-[10px] text-slate-500 uppercase tracking-widest ml-1">Full Name</label>
+            {extractionStatus && extractionStatus !== "SUCCESS" && (
+              <div className="mb-5 p-3.5 rounded-xl border border-amber-500/25 bg-amber-500/5 text-amber-300 font-mono text-[10px] leading-relaxed shadow-lg animate-pulse-slow">
+                <div className="flex gap-2.5 items-start">
+                  <svg className="w-4 h-4 flex-shrink-0 text-amber-400 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div>
+                    <span className="font-bold text-amber-200 block uppercase mb-1">SCANNING_WARNING</span>
+                    {extractionReason || "We couldn't extract all parameters automatically. The document image may be blurry, inverted, or poorly cropped. Please verify or input details manually."}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="space-y-4 mb-6">
+              <div className="space-y-1">
+                <label className="text-[9px] text-slate-500 font-mono uppercase tracking-widest font-semibold ml-0.5">FULL_NAME</label>
                 <input type="text" value={name} onChange={e => setName(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-900/50 border border-white/5 text-sm text-white focus:border-sky-500/30 focus:ring-1 focus:ring-sky-500/20 transition-all" />
+                  className="input-cyber w-full rounded-xl px-3 py-2.5 text-xs" />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-slate-500 uppercase tracking-widest ml-1">Date of Birth</label>
+                <div className="space-y-1">
+                  <label className="text-[9px] text-slate-500 font-mono uppercase tracking-widest font-semibold ml-0.5">DATE_OF_BIRTH</label>
                   <input type="text" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)} placeholder="YYYY-MM-DD"
-                    className="w-full px-4 py-3 rounded-xl bg-slate-900/50 border border-white/5 text-sm text-white focus:border-sky-500/30 focus:ring-1 focus:ring-sky-500/20 transition-all" />
+                    className="input-cyber w-full rounded-xl px-3 py-2.5 text-xs" />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-slate-500 uppercase tracking-widest ml-1">ID Type</label>
+                <div className="space-y-1">
+                  <label className="text-[9px] text-slate-500 font-mono uppercase tracking-widest font-semibold ml-0.5">DOCUMENT_TYPE</label>
                   <select value={documentType} onChange={e => setDocumentType(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-900/50 border border-white/5 text-sm text-white focus:border-sky-500/30 transition-all">
+                    className="input-cyber w-full rounded-xl px-3 py-2.5 text-xs cursor-pointer">
                     <option value="id_card">National ID</option>
                     <option value="passport">Passport</option>
                     <option value="drivers_license">Driver's License</option>
+                    <option value="grade_card">Grade Card</option>
                     <option value="other">Other</option>
                   </select>
                 </div>
@@ -257,11 +281,11 @@ export default function DocumentUpload() {
 
             <div className="flex gap-3">
               <button onClick={handleIssue} disabled={!name || !dateOfBirth}
-                className="flex-1 py-4 text-sm font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl hover:from-emerald-400 hover:to-teal-500 shadow-lg shadow-emerald-500/10 active:scale-[0.98] transition-all">
-                Confirm & Secure
+                className="flex-1 py-2.5 rounded-xl btn-cyber-primary text-xs font-mono tracking-widest">
+                CONFIRM_AND_SIGN
               </button>
-              <button onClick={() => setStage("idle")} className="px-6 py-4 text-sm font-bold text-slate-400 bg-white/5 hover:bg-white/10 rounded-2xl transition-all">
-                Back
+              <button onClick={() => setStage("idle")} className="px-5 py-2.5 rounded-xl btn-cyber-secondary text-xs font-mono tracking-widest">
+                BACK
               </button>
             </div>
           </div>

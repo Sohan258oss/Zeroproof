@@ -28,17 +28,17 @@ export default function ProofExplorer({ rawProof, result }) {
   const content = getContent();
 
   return (
-    <div className="glass-panel rounded-2xl overflow-hidden animate-fade-in">
+    <div className="glass-panel rounded-2xl overflow-hidden animate-fade-in border-emerald-950/80">
       {/* Tab bar */}
-      <div className="flex border-b border-white/5">
+      <div className="flex border-b border-emerald-950/60 bg-[#050f07]/30">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 px-4 py-3 text-xs font-medium tracking-wide transition-all ${
+            className={`flex-1 px-4 py-3 text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer ${
               activeTab === tab.key
-                ? "text-sky-400 bg-sky-500/5 border-b-2 border-sky-500"
-                : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.02]"
+                ? "text-emerald-400 bg-emerald-500/5 border-b-2 border-emerald-500"
+                : "text-slate-500 hover:text-slate-350 hover:bg-emerald-950/20"
             }`}
           >
             {tab.label}
@@ -47,16 +47,16 @@ export default function ProofExplorer({ rawProof, result }) {
       </div>
 
       {/* Content */}
-      <div className="relative group">
+      <div className="relative group bg-[#020402]">
         {/* Copy button */}
         <button
           onClick={() => navigator.clipboard.writeText(content)}
-          className="absolute top-3 right-3 bg-slate-800 hover:bg-slate-700 text-xs text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all z-10 border border-slate-700/50"
+          className="absolute top-3 right-3 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/30 text-[10px] font-mono text-emerald-400 px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all z-10 cursor-pointer"
         >
-          Copy
+          COPY_DATA
         </button>
 
-        <pre className="p-4 text-[11px] text-emerald-400/70 font-mono whitespace-pre-wrap break-all max-h-64 overflow-y-auto custom-scrollbar leading-relaxed">
+        <pre className="p-4 text-[10.5px] text-emerald-400/80 font-mono whitespace-pre-wrap break-all max-h-64 overflow-y-auto custom-scrollbar leading-relaxed">
           {content}
         </pre>
       </div>
