@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 const API = "http://localhost:3000";
@@ -14,9 +14,7 @@ export default function CredentialDetail() {
   const [orgName, setOrgName] = useState("");
   const [copied, setCopied] = useState(null);
 
-  useEffect(() => { fetchCredential(); }, [id]);
-
-  async function fetchCredential() {
+  const fetchCredential = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`${API}/v3/credentials/${id}`);
@@ -26,7 +24,11 @@ export default function CredentialDetail() {
       setShareLinks(data.data.shareLinks || []);
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
-  }
+  }, [id]);
+
+  useEffect(() => {
+    fetchCredential();
+  }, [fetchCredential]);
 
   async function handleShare(e) {
     e.preventDefault();

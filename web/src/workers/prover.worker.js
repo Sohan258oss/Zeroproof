@@ -14,7 +14,6 @@
  *   { type: "error",   message: string }
  */
 
-/* eslint-disable no-restricted-globals */
 import * as snarkjs from "snarkjs";
 
 const CIRCUIT_FILES = {

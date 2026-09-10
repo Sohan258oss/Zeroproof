@@ -15,9 +15,10 @@ export default function ProofExplorer({ rawProof, result }) {
     switch (activeTab) {
       case "proof":
         return rawProof ? JSON.stringify(rawProof, null, 2) : "No proof generated yet";
-      case "signals":
+      case "signals": {
         const signals = result?.data?.signals || result?.signals || {};
         return JSON.stringify(signals, null, 2);
+      }
       case "response":
         return result ? JSON.stringify(result, null, 2) : "No response yet";
       default:

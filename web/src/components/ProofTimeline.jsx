@@ -11,19 +11,24 @@ const TIMELINE_STEPS = [
 export default function ProofTimeline({ stage, progress, STAGES }) {
   const currentIndex = STAGES[stage]?.index ?? 0;
   const isIdle = stage === "idle";
-  const [logs, setLogs] = useState([]);
+  const [logs, setLogs] = useState([
+    "[system] Awaiting parameters...",
+    "[system] Ready for proof generation."
+  ]);
+  const [prevStage, setPrevStage] = useState(stage);
   const consoleEndRef = useRef(null);
 
-  // Generate realistic logs based on current stage transitions
-  useEffect(() => {
+  // Generate realistic logs based on current stage transitions during render
+  if (stage !== prevStage) {
+    setPrevStage(stage);
     if (stage === "idle") {
       setLogs(["[system] Awaiting parameters...", "[system] Ready for proof generation."]);
     } else if (stage === "loading_wasm") {
       setLogs((l) => [
         ...l,
         "[system] Prover thread spawned in dedicated web worker.",
-        `[snarkjs] Fetching circuit keys from repository...`,
-        `[snarkjs] Loaded WASM constraints system binary.`,
+        "[snarkjs] Fetching circuit keys from repository...",
+        "[snarkjs] Loaded WASM constraints system binary.",
       ]);
     } else if (stage === "computing_witness") {
       setLogs((l) => [
@@ -44,7 +49,7 @@ export default function ProofTimeline({ stage, progress, STAGES }) {
       setLogs((l) => [
         ...l,
         "[api] Serializing PLONK proof components (A, B, C)...",
-        `[api] Transmitting proof hash to verifier node...`,
+        "[api] Transmitting proof hash to verifier node...",
       ]);
     } else if (stage === "complete") {
       setLogs((l) => [
@@ -59,7 +64,7 @@ export default function ProofTimeline({ stage, progress, STAGES }) {
         "[error] Handshake aborted. Witness constraints violated.",
       ]);
     }
-  }, [stage]);
+  }
 
   // Scroll terminal logs to bottom
   useEffect(() => {
@@ -103,6 +108,9 @@ export default function ProofTimeline({ stage, progress, STAGES }) {
             } else if (isActive) {
               iconColor = "bg-emerald-500/15 border-emerald-500/40 text-emerald-400 ring-2 ring-emerald-500/10 shadow-[0_0_10px_rgba(0,255,102,0.15)]";
               textColor = "text-white";
+            } else if (isPending) {
+              iconColor = "bg-emerald-950/20 border-emerald-950/80 text-slate-650";
+              textColor = "text-slate-500";
             }
 
             return (

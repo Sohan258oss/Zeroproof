@@ -69,7 +69,7 @@ function ZKDemo() {
       <section className="relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto py-8">
         {/* Top Stats Banner */}
         <div className="mb-8">
-          <StatsPanel proofTime={proofTime} proofCount={proofCount} stage={stage} />
+          <StatsPanel proofTime={proofTime} proofCount={proofCount} />
         </div>
 
         {/* Proving Panel Grid */}

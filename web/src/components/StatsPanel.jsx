@@ -1,4 +1,4 @@
-export default function StatsPanel({ proofTime, proofCount, stage }) {
+export default function StatsPanel({ proofTime, proofCount }) {
   const stats = [
     {
       label: "Proof System",
