@@ -54,8 +54,10 @@ async function storeDocument(fileBuffer, { originalName, mimeType, attributes, i
         sizeBytes: fileBuffer.length,
         documentHash,
         attributes: {
-            fullName: attributes.fullName || "",
-            dateOfBirth: attributes.dateOfBirth || "",
+            name: attributes.fullName || attributes.name || "",
+            fullName: attributes.fullName || attributes.name || "",
+            dob: attributes.dateOfBirth || attributes.dob || "",
+            dateOfBirth: attributes.dateOfBirth || attributes.dob || "",
             documentType: attributes.documentType || "other",
             status: attributes.status || "SUCCESS",
             confidence: attributes.confidence || { name: 0, dob: 0 },

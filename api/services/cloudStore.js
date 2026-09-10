@@ -133,9 +133,13 @@ async function checkDuplicate(documentHash) {
         // Simple scan for demo purposes (In prod, use Global Secondary Index on documentHash)
         const params = {
             TableName: DYNAMO_TABLE_DOCS,
-            FilterExpression: "documentHash = :hash",
+            FilterExpression: "documentHash = :hash AND #s = :status",
+            ExpressionAttributeNames: {
+                "#s": "status"
+            },
             ExpressionAttributeValues: {
-                ":hash": { S: documentHash }
+                ":hash": { S: documentHash },
+                ":status": { S: "active" }
             }
         };
         const result = await dynamoClient.send(new ScanCommand(params));
@@ -145,7 +149,7 @@ async function checkDuplicate(documentHash) {
         return null;
     } else {
         const db = getLocalDB();
-        const existing = db.docs.find(d => d.documentHash === documentHash);
+        const existing = db.docs.find(d => d.documentHash === documentHash && d.status === "active");
         return existing ? existing.id : null;
     }
 }

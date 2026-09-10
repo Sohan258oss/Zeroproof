@@ -71,6 +71,11 @@ async function issueCredential({ documentId, documentHash, attributes, credentia
 
         // Check if circuit files exist
         if (fs.existsSync(wasmPath) && fs.existsSync(zkeyPath)) {
+            if (!globalThis.curve_bn128) {
+                const { buildBn128 } = require("ffjavascript");
+                globalThis.curve_bn128 = await buildBn128(true);
+            }
+
             const inputs = {
                 birthYear: birthYear,
                 currentYear: currentYear,
@@ -79,7 +84,12 @@ async function issueCredential({ documentId, documentHash, attributes, credentia
                 externalNullifier: externalNullifier
             };
 
-            const result = await snarkjs.plonk.fullProve(inputs, wasmPath, zkeyPath);
+            const wc = require("../../keys/age_check_js/witness_calculator.js");
+            const wasmBuff = fs.readFileSync(wasmPath);
+            const calc = await wc(wasmBuff);
+            const wtns = await calc.calculateWTNSBin(inputs, 0);
+
+            const result = await snarkjs.plonk.prove(zkeyPath, wtns);
             proof = result.proof;
             publicSignals = result.publicSignals;
 

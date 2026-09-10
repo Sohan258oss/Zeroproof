@@ -13,16 +13,28 @@ async function generateProofPayload(birthYear, currentYear, ageLimit) {
     const inputs = {
         birthYear: birthYear,
         currentYear: currentYear,
-        ageLimit: ageLimit
+        ageLimit: ageLimit,
+        secret: "12345",
+        externalNullifier: "67890"
     };
 
     // The wasm file is typically generated in a folder named after the circuit + "_js"
     const wasmPath = path.join(__dirname, "../keys/age_check_js/age_check.wasm");
-    const zkeyPath = path.join(__dirname, "../keys/circuit_final.zkey");
+    const zkeyPath = path.join(__dirname, "../keys/age_check_final.zkey");
 
     try {
-        // Generate the witness and proof
-        const { proof, publicSignals } = await snarkjs.plonk.fullProve(inputs, wasmPath, zkeyPath);
+        if (!globalThis.curve_bn128) {
+            const { buildBn128 } = require("ffjavascript");
+            globalThis.curve_bn128 = await buildBn128(true);
+        }
+        const fs = require("fs");
+        const wc = require("../keys/age_check_js/witness_calculator.js");
+        const wasmBuff = fs.readFileSync(wasmPath);
+        const calc = await wc(wasmBuff);
+        const wtns = await calc.calculateWTNSBin(inputs, 0);
+
+        // Generate the proof
+        const { proof, publicSignals } = await snarkjs.plonk.prove(zkeyPath, wtns);
 
         // Format payload
         const payload = {

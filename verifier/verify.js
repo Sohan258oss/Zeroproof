@@ -3,8 +3,13 @@ const fs = require("fs");
 const path = require("path");
 
 // Mocking AWS CloudWatch logs to avoid actual AWS dependency crashes if credentials are not present locally.
-const AWS = require("aws-sdk");
-const cloudwatchlogs = new AWS.CloudWatchLogs({ region: "us-east-1" });
+let cloudwatchlogs = null;
+try {
+    const AWS = require("aws-sdk");
+    cloudwatchlogs = new AWS.CloudWatchLogs({ region: "us-east-1" });
+} catch {
+    // aws-sdk v2 is not installed (project uses AWS SDK v3); fallback to local logging
+}
 
 /**
  * Verify a Plonk proof for the Age Check circuit

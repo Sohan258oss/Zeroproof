@@ -88,6 +88,9 @@ router.post("/upload", upload.single("document"), async (req, res, next) => {
                 const existingId = storeErr.message.split(":")[1];
                 const { getDocument } = require("../../services/documentStore");
                 doc = getDocument(existingId);
+                if (!doc) {
+                    throw new Error(`Duplicate document ID ${existingId} could not be retrieved`);
+                }
             } else {
                 throw storeErr;
             }

@@ -10,6 +10,13 @@ async function analyzeDocument(buffer, mimeType = "") {
         let text = "";
 
         // -------------------------------
+        // 0. TEXT DOCUMENT / STRING
+        // -------------------------------
+        if (mimeType.startsWith("text/") || typeof buffer === "string" || mimeType === "application/json") {
+            text = typeof buffer === "string" ? buffer : buffer.toString("utf-8");
+        }
+
+        // -------------------------------
         // 1. PDF PARSING
         // -------------------------------
         if (
@@ -38,15 +45,25 @@ async function analyzeDocument(buffer, mimeType = "") {
 
         if (isImage) {
             console.log("\n[Analyzer] Running OCR...\n");
+            let worker = null;
             try {
-                const result = await Tesseract.recognize(buffer, "eng");
-                text = result.data.text || "";
+                worker = await Tesseract.createWorker("eng", 1, {
+                    errorHandler: (err) => {
+                        console.warn("[Analyzer] OCR worker handled error:", err?.message || err);
+                    }
+                });
+                const result = await worker.recognize(buffer);
+                text = result?.data?.text || "";
 
                 console.log("\n========== RAW OCR TEXT ==========");
                 console.log(text);
                 console.log("==================================\n");
             } catch (err) {
-                console.warn("[Analyzer] OCR failed:", err.message);
+                console.warn("[Analyzer] OCR failed:", err.message || err);
+            } finally {
+                if (worker) {
+                    try { await worker.terminate(); } catch {}
+                }
             }
         }
 
