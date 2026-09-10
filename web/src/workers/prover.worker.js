@@ -76,7 +76,10 @@ self.onmessage = async (e) => {
         const { proof, publicSignals } = await snarkjs.plonk.fullProve(
             inputs,
             files.wasm,
-            files.zkey
+            files.zkey,
+            null,
+            { memorySize: 1000 },
+            { singleThread: true }
         );
 
         const duration = (performance.now() - startTime).toFixed(2);
