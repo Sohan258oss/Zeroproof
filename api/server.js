@@ -31,6 +31,14 @@ const v3Verify = require("./routes/v3/verify");
 const { AppError } = require("./utils/errors");
 const response = require("./utils/response");
 
+// Pre-initialize single-threaded bn128 curve to prevent multi-worker allocation crashes on Windows
+try {
+    const { buildBn128 } = require("ffjavascript");
+    buildBn128(true).then(curve => {
+        globalThis.curve_bn128 = curve;
+    }).catch(() => {});
+} catch {}
+
 const app = express();
 
 // ─────────────────────────────────────────

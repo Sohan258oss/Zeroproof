@@ -9,13 +9,13 @@ const path = require("path");
  * @param {number} ageLimit - Public input: Minimum required age
  * @returns {Promise<Object>} JSON payload ready for transmission
  */
-async function generateProofPayload(birthYear, currentYear, ageLimit) {
+async function generateProofPayload(birthYear, currentYear, ageLimit, secret = "12345", externalNullifier = "67890") {
     const inputs = {
         birthYear: birthYear,
         currentYear: currentYear,
         ageLimit: ageLimit,
-        secret: "12345",
-        externalNullifier: "67890"
+        secret: String(secret),
+        externalNullifier: String(externalNullifier)
     };
 
     // The wasm file is typically generated in a folder named after the circuit + "_js"

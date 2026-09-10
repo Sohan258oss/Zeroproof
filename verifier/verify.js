@@ -23,6 +23,12 @@ async function verifyProof(proof, publicSignals) {
         const vKeyPath = path.join(__dirname, "../keys/verification_key.json");
         const vKey = JSON.parse(fs.readFileSync(vKeyPath, "utf-8"));
 
+        // Ensure single-threaded bn128 curve
+        if (!globalThis.curve_bn128) {
+            const { buildBn128 } = require("ffjavascript");
+            globalThis.curve_bn128 = await buildBn128(true);
+        }
+
         // Validate proof
         const isValid = await snarkjs.plonk.verify(vKey, publicSignals, proof);
 

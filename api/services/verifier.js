@@ -114,6 +114,12 @@ async function verifyProof(proofType, proof, publicSignals) {
     // Load verification key
     const vkey = loadVerificationKey(proofType);
 
+    // Ensure single-threaded bn128 curve to prevent multi-worker allocation crashes on Windows
+    if (!globalThis.curve_bn128) {
+        const { buildBn128 } = require("ffjavascript");
+        globalThis.curve_bn128 = await buildBn128(true);
+    }
+
     // Cryptographic verification
     const isValid = await snarkjs.plonk.verify(vkey, publicSignals, proof);
 
